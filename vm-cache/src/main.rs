@@ -343,7 +343,7 @@ fn main() {
             info!("restarting vm-cache process...");
             stop_background_process().unwrap();
             run_background()
-        },
+        }
         "stop" => stop_background_process(),
         _ => {
             error!("invalid mode: {}", args[1]);
