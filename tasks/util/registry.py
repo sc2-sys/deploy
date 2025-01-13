@@ -168,20 +168,20 @@ def start(debug=False, clean=False):
 
     containerd_cert_path = join(containerd_certs_dir, "sc2_registry.crt")
     containerd_certs_file = """
-    server = "https://{registry_url}"
+server = "https://{registry_url}"
 
-    [host."https://{registry_url}"]
-    capabilities = ["pull", "resolve"]
-    ca = "{containerd_cert_path}"
-    """.format(
+[host."https://{registry_url}"]
+capabilities = ["pull", "resolve"]
+ca = "{containerd_cert_path}"
+""".format(
         registry_url=LOCAL_REGISTRY_URL, containerd_cert_path=containerd_cert_path
     )
 
     cmd = """
-    sudo sh -c 'cat <<EOF > {destination_file}
-    {file_contents}
-    EOF'
-    """.format(
+sudo sh -c 'cat <<EOF > {destination_file}
+{file_contents}
+EOF'
+""".format(
         destination_file=join(containerd_certs_dir, "hosts.toml"),
         file_contents=containerd_certs_file.strip(),
     )
