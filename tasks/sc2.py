@@ -199,7 +199,13 @@ def deploy(ctx, debug=False, clean=False):
 
     if clean:
         # Remove all directories that we populate and modify
-        for nuked_dir in [COCO_ROOT, CONTAINERD_CONFIG_ROOT, HOST_CERT_DIR, KATA_ROOT, SC2_CONFIG_DIR]:
+        for nuked_dir in [
+            COCO_ROOT,
+            CONTAINERD_CONFIG_ROOT,
+            HOST_CERT_DIR,
+            KATA_ROOT,
+            SC2_CONFIG_DIR,
+        ]:
             if debug:
                 print(f"WARNING: nuking {nuked_dir}")
             run(f"sudo rm -rf {nuked_dir}", shell=True, check=True)

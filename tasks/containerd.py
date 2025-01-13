@@ -107,8 +107,16 @@ def hot_replace(ctx):
         print("Consider running: inv containerd.cli ")
 
     for binary in CONTAINERD_BINARY_NAMES:
-        print(f"cp {CONTAINERD_CTR_NAME}:{CONTAINERD_CTR_BINPATH}/{binary} {CONTAINERD_HOST_BINPATH}/{binary}")
-        docker_cmd = f"sudo docker cp {CONTAINERD_CTR_NAME}:{CONTAINERD_CTR_BINPATH}/{binary} {CONTAINERD_HOST_BINPATH}/{binary}"
+        print(
+            (
+                f"cp {CONTAINERD_CTR_NAME}:{CONTAINERD_CTR_BINPATH}/{binary} "
+                f"{CONTAINERD_HOST_BINPATH}/{binary}"
+            )
+        )
+        docker_cmd = (
+            f"sudo docker cp {CONTAINERD_CTR_NAME}:{CONTAINERD_CTR_BINPATH}/"
+            f"{binary} {CONTAINERD_HOST_BINPATH}/{binary}"
+        )
         run(docker_cmd, shell=True, check=True)
 
     restart_containerd()
