@@ -14,6 +14,7 @@ from . import kbs
 from . import knative
 from . import kubeadm
 from . import nydus
+from . import nydus_snapshotter
 from . import operator
 from . import ovmf
 from . import qemu
@@ -39,6 +40,7 @@ ns = Collection(
     knative,
     kubeadm,
     nydus,
+    nydus_snapshotter,
     operator,
     ovmf,
     qemu,
