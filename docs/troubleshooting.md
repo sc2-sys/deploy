@@ -151,7 +151,10 @@ ctr -n k8s.io content fetch ${IMAGE_NAME}
 the image name is the image tag appearing right before the error message in
 the pod logs.
 
-TO-DO
+### Nydus snapshot corruption
+
+Sometimes, after hot-replacing the nydus-snapshotter, snapshots become corrupted,
+and we can see the error below.
 
 ```
 Failed to create pod sandbox: rpc error: code = Unknown desc = failed to create containerd task: failed to create shim task: failed to mount /run/kata-containers/shared/containers/0a583f0691d78e2036425f99bdac8e03302158320c1c55a5c6482cae7e729009/rootfs to /run/kata-containers/0a583f0691d78e2036425f99bdac8e03302158320c1c55a5c6482cae7e729009/rootfs, with error: ENOENT: No such file or directory
