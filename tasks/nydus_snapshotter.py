@@ -1,6 +1,7 @@
 from invoke import task
 from os.path import join
 from subprocess import run
+from tasks.util.containerd import wait_for_containerd_socket
 from tasks.util.docker import is_ctr_running
 from tasks.util.env import COCO_ROOT, GHCR_URL, GITHUB_ORG, PROJ_ROOT, print_dotted_line
 from tasks.util.toml import update_toml
@@ -34,6 +35,9 @@ def install(debug=False, clean=False):
     Install the nydus snapshotter binaries
     """
     print_dotted_line(f"Installing nydus-snapshotter (v{NYDUS_SNAPSHOTTER_VERSION})")
+
+    # For some reason, this docker command sometime fails
+    wait_for_containerd_socket()
 
     docker_cmd = "docker run -td --name {} {} bash".format(
         NYDUS_SNAPSHOTTER_CTR_NAME, NYDUS_SNAPSHOTTER_IMAGE_TAG
