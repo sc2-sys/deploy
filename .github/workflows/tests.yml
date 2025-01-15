@@ -68,27 +68,36 @@ jobs:
       - name: "Install SC2"
         run: ./bin/inv_wrapper.sh sc2.deploy --clean
 
-      - name: "Run python hello world"
+      - name: "Run python hello world (cold and warm starts)"
         run: |
           for runtime_class in ${{ matrix.runtime_classes }}; do
-            echo "Running test for ${runtime_class}..."
-            export SC2_RUNTIME_CLASS=${runtime_class}
-            envsubst < ./demo-apps/helloworld-py/deployment.yaml | ./bin/kubectl apply -f -
+            for flavour in "cold" "warm"; do
+              echo "Running test for ${runtime_class} (${flavour})..."
 
-            # Wait for pod to be ready
-            until [ "$(./bin/kubectl get pods -l ${{ env.POD_LABEL }} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}')" = "True" ]; do echo "Waiting for pod to be ready..."; sleep 2; done
-            sleep 1
+              # If running a cold-start test, make sure to remove the image first
+              if [ "$flavour" == "cold" ]; then
+                sudo crictl rmi $(sudo crictl --runtime-endpoint unix:///run/containerd/containerd.sock images | grep sc2cr.io/applications/helloworld-py | awk '{print $3}') > /dev/null 2>&1
+              fi
 
-            # Get the pod's IP
-            service_ip=$(./bin/kubectl get services -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}')
-            [ "$(curl --retry 3 -X GET ${service_ip}:8080)" = "Hello World!" ]
-            envsubst < ./demo-apps/helloworld-py/deployment.yaml | ./bin/kubectl delete -f -
+              # Deploy python pod
+              export SC2_RUNTIME_CLASS=${runtime_class}
+              envsubst < ./demo-apps/helloworld-py/deployment.yaml | ./bin/kubectl apply -f -
 
-            # Wait for pod to be deleted
-            ./bin/kubectl wait --for=delete -l ${{ env.POD_LABEL }} pod --timeout=30s
-            # Extra cautionary sleep
-            sleep 5
-            echo "Test for ${runtime_class} successful!"
+              # Wait for pod to be ready
+              until [ "$(./bin/kubectl get pods -l ${{ env.POD_LABEL }} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}')" = "True" ]; do echo "Waiting for pod to be ready..."; sleep 2; done
+              sleep 1
+
+              # Get the pod's IP
+              service_ip=$(./bin/kubectl get services -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}')
+              [ "$(curl --retry 3 -X GET ${service_ip}:8080)" = "Hello World!" ]
+              envsubst < ./demo-apps/helloworld-py/deployment.yaml | ./bin/kubectl delete -f -
+
+              # Wait for pod to be deleted
+              ./bin/kubectl wait --for=delete -l ${{ env.POD_LABEL }} pod --timeout=30s
+              # Extra cautionary sleep
+              sleep 5
+              echo "Test for ${runtime_class} (${flavour}) successful!"
+            done
           done
         env:
           POD_LABEL: apps.sc2.io/name=helloworld-py
