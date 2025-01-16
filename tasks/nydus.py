@@ -9,13 +9,6 @@ from tasks.util.versions import NYDUS_VERSION
 NYDUS_CTR_NAME = "nydus-workon"
 NYDUS_IMAGE_TAG = join(GHCR_URL, GITHUB_ORG, "nydus") + f":{NYDUS_VERSION}"
 
-# You can see all options to configure the  nydus-snapshotter here:
-# https://github.com/containerd/nydus-snapshotter/blob/main/misc/snapshotter/config.toml
-
-
-def restart_nydus():
-    run("sudo service nydus-snapshotter restart", shell=True, check=True)
-
 
 @task
 def build(ctx, nocache=False, push=False):
