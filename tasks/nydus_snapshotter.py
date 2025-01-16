@@ -1,8 +1,7 @@
 from invoke import task
 from os.path import join
 from subprocess import run
-from tasks.util.containerd import wait_for_containerd_socket
-from tasks.util.docker import is_ctr_running
+from tasks.util.docker import copy_from_ctr_image, is_ctr_running
 from tasks.util.env import COCO_ROOT, GHCR_URL, GITHUB_ORG, PROJ_ROOT, print_dotted_line
 from tasks.util.toml import update_toml
 from tasks.util.versions import NYDUS_SNAPSHOTTER_VERSION
@@ -36,42 +35,17 @@ def install(debug=False, clean=False):
     """
     print_dotted_line(f"Installing nydus-snapshotter (v{NYDUS_SNAPSHOTTER_VERSION})")
 
-    # For some reason, this docker command sometime fails
-    wait_for_containerd_socket()
-
-    docker_cmd = "docker run -td --name {} {} bash".format(
-        NYDUS_SNAPSHOTTER_CTR_NAME, NYDUS_SNAPSHOTTER_IMAGE_TAG
+    host_binaries = [
+        join(NYDUS_SNAPSHOTTER_HOST_BINPATH, binary)
+        for binary in NYDUS_SNAPSHOTTER_BINARY_NAMES
+    ]
+    ctr_binaries = [
+        join(NYDUS_SNAPSHOTTER_CTR_BINPATH, binary)
+        for binary in NYDUS_SNAPSHOTTER_BINARY_NAMES
+    ]
+    copy_from_ctr_image(
+        NYDUS_SNAPSHOTTER_IMAGE_TAG, ctr_binaries, host_binaries, requires_sudo=True
     )
-    result = run(docker_cmd, shell=True, capture_output=True)
-    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
-    if debug:
-        print(result.stdout.decode("utf-8").strip())
-
-    def cleanup():
-        docker_cmd = "docker rm -f {}".format(NYDUS_SNAPSHOTTER_CTR_NAME)
-        result = run(docker_cmd, shell=True, capture_output=True)
-        assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
-        if debug:
-            print(result.stdout.decode("utf-8").strip())
-
-    for binary in NYDUS_SNAPSHOTTER_BINARY_NAMES:
-        docker_cmd = "sudo docker cp {}:{}/{} {}/{}".format(
-            NYDUS_SNAPSHOTTER_CTR_NAME,
-            NYDUS_SNAPSHOTTER_CTR_BINPATH,
-            binary,
-            NYDUS_SNAPSHOTTER_HOST_BINPATH,
-            binary,
-        )
-        result = run(docker_cmd, shell=True, capture_output=True)
-        if result.returncode != 0:
-            cleanup()
-            print(result.stderr.decode("utf-8").strip())
-            raise RuntimeError("Error copying from nydus snapshotter workon!")
-
-        if debug:
-            print(result.stdout.decode("utf-8").strip())
-
-    cleanup()
 
     # Remove all nydus config for a clean start
     if clean:
