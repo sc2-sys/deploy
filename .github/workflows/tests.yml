@@ -102,6 +102,9 @@ jobs:
         env:
           POD_LABEL: apps.sc2.io/name=helloworld-py
 
+      - name: "Fetch content (see #130)"
+        run: sudo ctr -n k8s.io content fetch -k sc2cr.io/applications/helloworld-py:unencrypted
+
       - name: "Run Knative hello world"
         run: |
           for runtime_class in ${{ matrix.runtime_classes }}; do
