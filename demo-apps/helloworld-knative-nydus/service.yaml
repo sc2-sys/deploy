@@ -7,6 +7,15 @@ spec:
     metadata:
       labels:
         apps.sc2.io/name: helloworld-py
+      # WARNING: this annotation is crucial, as otherwise containerd will
+      # revert to pulling images with the default snapshotter, which in turn
+      # will mean that:
+      # 1. The image is fully pulled, as well, on the host.
+      # 2. The nydus-snapshotter prepares the snapshots on the host, too.
+      # These two things include an additional runtime of roughly 10 seconds
+      # for cold starts.
+      annotations:
+        io.containerd.cri.runtime-handler: kata-${SC2_RUNTIME_CLASS}
     spec:
       runtimeClassName: kata-${SC2_RUNTIME_CLASS}
       # coco-knative: need to run user container as root
