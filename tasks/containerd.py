@@ -131,8 +131,6 @@ def install(debug=False, clean=False):
     if is_containerd_active():
         run("sudo service containerd stop", shell=True, check=True)
 
-    do_build(debug=debug)
-
     ctr_base_path = "/go/src/github.com/sc2-sys/containerd/bin"
     host_base_path = "/usr/bin"
 
