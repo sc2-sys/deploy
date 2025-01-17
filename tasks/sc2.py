@@ -11,6 +11,7 @@ from tasks.k9s import install as k9s_install
 from tasks.knative import install as knative_install
 from tasks.kubeadm import create as k8s_create, destroy as k8s_destroy
 from tasks.nydus_snapshotter import install as nydus_snapshotter_install
+from tasks.nydus import do_install as nydus_install
 from tasks.operator import (
     install as operator_install,
     install_cc_runtime as operator_install_cc_runtime,
@@ -258,6 +259,9 @@ def deploy(ctx, debug=False, clean=False):
 
     # Install the nydus-snapshotter (must happen after we install CoCo)
     nydus_snapshotter_install(debug=debug, clean=clean)
+
+    # Install the nydusify tool
+    nydus_install()
 
     # Start a local docker registry (must happen before knative installation,
     # as we rely on it to host our sidecar image)

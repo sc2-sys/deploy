@@ -63,6 +63,7 @@ jobs:
         run: |
           docker pull ghcr.io/sc2-sys/containerd:$(grep -oP 'CONTAINERD_VERSION\s*=\s*"\K[^"]+' ./tasks/util/versions.py)
           docker pull ghcr.io/sc2-sys/kata-containers:$(grep -oP 'KATA_VERSION\s*=\s*"\K[^"]+' ./tasks/util/versions.py)
+          docker pull ghcr.io/sc2-sys/nydus:$(grep -oP 'NYDUS_VERSION\s*=\s*"\K[^"]+' ./tasks/util/versions.py)
           docker pull ghcr.io/sc2-sys/nydus-snapshotter:$(grep -oP 'NYDUS_SNAPSHOTTER_VERSION\s*=\s*"\K[^"]+' ./tasks/util/versions.py)
 
       - name: "Install SC2"
