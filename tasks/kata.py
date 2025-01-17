@@ -122,18 +122,19 @@ def enable_annotation(ctx, annotation, runtime="qemu-snp-sc2"):
 
 
 @task
-def replace_agent(ctx, debug=False, runtime="qemu-snp-sc2"):
+def hot_replace_agent(ctx, debug=False, runtime="qemu-snp-sc2"):
     replace_kata_agent(
         dst_initrd_path=join(
             KATA_IMG_DIR, "kata-containers-initrd-confidential-sc2.img"
         ),
         debug=debug,
         sc2=runtime in SC2_RUNTIMES,
+        hot_replace=True,
     )
 
 
 @task
-def replace_shim(ctx, runtime="qemu-snp-sc2"):
+def hot_replace_shim(ctx, runtime="qemu-snp-sc2"):
     replace_kata_shim(
         dst_shim_binary=join(
             KATA_ROOT,

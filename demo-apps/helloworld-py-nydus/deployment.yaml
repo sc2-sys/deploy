@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: coco-helloworld-py-node-port
+spec:
+  type: NodePort
+  selector:
+    apps.sc2.io/name: helloworld-py
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coco-helloworld-py
+  labels:
+    apps.sc2.io/name: helloworld-py
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      apps.sc2.io/name: helloworld-py
+  template:
+    metadata:
+      labels:
+        apps.sc2.io/name: helloworld-py
+      # WARNING: this annotation is crucial, as otherwise containerd will
+      # revert to pulling images with the default snapshotter, which in turn
+      # will mean that:
+      # 1. The image is fully pulled, as well, on the host.
+      # 2. The nydus-snapshotter prepares the snapshots on the host, too.
+      # These two things include an additional runtime of roughly 10 seconds
+      # for cold starts.
+      annotations:
+        io.containerd.cri.runtime-handler: kata-${SC2_RUNTIME_CLASS}
+    spec:
+      runtimeClassName: kata-${SC2_RUNTIME_CLASS}
+      containers:
+      - name: helloworld-py
+        image: sc2cr.io/applications/helloworld-py:unencrypted-nydus
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080

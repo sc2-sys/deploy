@@ -105,6 +105,7 @@ def hot_replace(ctx):
     if not is_ctr_running(CONTAINERD_CTR_NAME):
         print("Must have the work-on container running to hot replace!")
         print("Consider running: inv containerd.cli ")
+        return
 
     for binary in CONTAINERD_BINARY_NAMES:
         print(
