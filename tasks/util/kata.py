@@ -1,7 +1,7 @@
 from os import makedirs
 from os.path import dirname, exists, join
 from subprocess import run
-from tasks.util.docker import is_ctr_running
+from tasks.util.docker import copy_from_ctr_image, is_ctr_running
 from tasks.util.env import (
     CONTAINERD_CONFIG_FILE,
     KATA_CONFIG_DIR,
@@ -59,33 +59,37 @@ def stop_kata_workon_ctr():
     assert result.returncode == 0
 
 
-# TODO: differentiate between a hot-replace and a regular replace
-def copy_from_kata_workon_ctr(ctr_path, host_path, sudo=False, debug=False):
-    ctr_started = run_kata_workon_ctr()
+def copy_from_kata_workon_ctr(
+    ctr_path, host_path, sudo=False, debug=False, hot_replace=False
+):
+    if hot_replace and not is_ctr_running(KATA_WORKON_CTR_NAME):
+        print("Must have the work-on container running to hot replace!")
+        print("Consider running: inv containerd.cli ")
+        raise RuntimeError("Hot-replace without work-on running!")
 
-    if not ctr_started:
-        print("Copying files from running Kata container...")
-
-    docker_cmd = "docker cp {}:{} {}".format(
-        KATA_WORKON_CTR_NAME,
-        ctr_path,
-        host_path,
-    )
-    if sudo:
-        docker_cmd = "sudo {}".format(docker_cmd)
-    result = run(docker_cmd, shell=True, capture_output=True)
-    if debug:
-        print(result.stdout.decode("utf-8").strip())
-
-    # If the Kata workon ctr was not running before, make sure we delete it
-    if ctr_started:
-        stop_kata_workon_ctr()
+    if hot_replace:
+        # If hot-replacing, manually copy from the work-on image
+        docker_cmd = "docker cp {}:{} {}".format(
+            KATA_WORKON_CTR_NAME,
+            ctr_path,
+            host_path,
+        )
+        if sudo:
+            docker_cmd = "sudo {}".format(docker_cmd)
+        result = run(docker_cmd, shell=True, capture_output=True)
+        if debug:
+            print(result.stdout.decode("utf-8").strip())
+    else:
+        # If not hot-replacing, use the built-in method to copy from a
+        # container rootfs without initializing it
+        copy_from_ctr_image(KATA_IMAGE_TAG, [ctr_path], [host_path], requires_sudo=sudo)
 
 
 def replace_agent(
     dst_initrd_path=join(KATA_IMG_DIR, "kata-containers-initrd-confidential-sc2.img"),
     debug=False,
     sc2=False,
+    hot_replace=False,
 ):
     """
     Replace the kata-agent with a custom-built one
@@ -133,7 +137,11 @@ def replace_agent(
     )
     agent_initrd_path = join(workdir, "usr/bin/kata-agent")
     copy_from_kata_workon_ctr(
-        agent_host_path, agent_initrd_path, sudo=True, debug=debug
+        agent_host_path,
+        agent_initrd_path,
+        sudo=True,
+        debug=debug,
+        hot_replace=hot_replace,
     )
 
     # We also need to manually copy the agent to <root_fs>/sbin/init (note that
@@ -141,7 +149,11 @@ def replace_agent(
     alt_agent_initrd_path = join(workdir, "sbin", "init")
     run("sudo rm {}".format(alt_agent_initrd_path), shell=True, check=True)
     copy_from_kata_workon_ctr(
-        agent_host_path, alt_agent_initrd_path, sudo=True, debug=debug
+        agent_host_path,
+        alt_agent_initrd_path,
+        sudo=True,
+        debug=debug,
+        hot_replace=hot_replace,
     )
 
     # Include any extra files that the caller may have provided
@@ -192,9 +204,17 @@ def replace_agent(
     )
     ctr_lib_path = join(KATA_SOURCE_DIR, "tools", "osbuilder", "scripts", "lib.sh")
     initrd_builder_path = join(kata_tmp_scripts, "initrd-builder", "initrd_builder.sh")
-    copy_from_kata_workon_ctr(ctr_initrd_builder_path, initrd_builder_path, debug=debug)
     copy_from_kata_workon_ctr(
-        ctr_lib_path, join(kata_tmp_scripts, "scripts", "lib.sh"), debug=debug
+        ctr_initrd_builder_path,
+        initrd_builder_path,
+        debug=debug,
+        hot_replace=hot_replace,
+    )
+    copy_from_kata_workon_ctr(
+        ctr_lib_path,
+        join(kata_tmp_scripts, "scripts", "lib.sh"),
+        debug=debug,
+        hot_replace=hot_replace,
     )
     work_env = {"AGENT_INIT": "yes"}
     initrd_pack_cmd = "sudo {} -o {} {}".format(
@@ -232,6 +252,7 @@ def replace_shim(
     dst_shim_binary=join(KATA_ROOT, "bin", "containerd-shim-kata-sc2-v2"),
     dst_runtime_binary=join(KATA_ROOT, "bin", "kata-runtime-sc2"),
     sc2=True,
+    hot_replace=False,
 ):
     """
     Replace the containerd-kata-shim with a custom one
@@ -244,14 +265,18 @@ def replace_shim(
         KATA_SHIM_SOURCE_DIR if sc2 else KATA_BASELINE_SHIM_SOURCE_DIR,
         "containerd-shim-kata-v2",
     )
-    copy_from_kata_workon_ctr(src_shim_binary, dst_shim_binary, sudo=True)
+    copy_from_kata_workon_ctr(
+        src_shim_binary, dst_shim_binary, sudo=True, hot_replace=hot_replace
+    )
 
     # Also copy the kata-runtime binary
     src_runtime_binary = join(
         KATA_SHIM_SOURCE_DIR if sc2 else KATA_BASELINE_SHIM_SOURCE_DIR,
         "kata-runtime",
     )
-    copy_from_kata_workon_ctr(src_runtime_binary, dst_runtime_binary, sudo=True)
+    copy_from_kata_workon_ctr(
+        src_runtime_binary, dst_runtime_binary, sudo=True, hot_replace=hot_replace
+    )
 
     target_runtimes = SC2_RUNTIMES if sc2 else KATA_RUNTIMES
     for runtime in target_runtimes:
