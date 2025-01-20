@@ -1,14 +1,24 @@
 from invoke import task
-from os.path import join
+from os.path import exists, join
+from shutil import rmtree
 from subprocess import run
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
 from tasks.util.env import COCO_ROOT, GHCR_URL, GITHUB_ORG, PROJ_ROOT, print_dotted_line
 from tasks.util.toml import update_toml
 from tasks.util.versions import NYDUS_SNAPSHOTTER_VERSION
 
-NYDUS_SNAPSHOTTER_CONFIG_FILE = join(
-    COCO_ROOT, "share", "nydus-snapshotter", "config-coco-guest-pulling.toml"
+NYDUS_SNAPSHOTTER_CONFIG_DIR = join(COCO_ROOT, "share", "nydus-snapshotter")
+NYDUS_SNAPSHOTTER_GUEST_PULL_CONFIG = join(
+    NYDUS_SNAPSHOTTER_CONFIG_DIR, "config-coco-guest-pulling.toml"
 )
+NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG = join(
+    NYDUS_SNAPSHOTTER_CONFIG_DIR, "config-coco-host-sharing.toml"
+)
+
+NYDUS_SNAPSHOTTER_CONFIG_FILES = [
+    NYDUS_SNAPSHOTTER_GUEST_PULL_CONFIG,
+    NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG,
+]
 NYDUS_SNAPSHOTTER_CTR_NAME = "nydus-snapshotter-workon"
 NYDUS_SNAPSHOTTER_IMAGE_TAG = (
     join(GHCR_URL, GITHUB_ORG, "nydus-snapshotter") + f":{NYDUS_SNAPSHOTTER_VERSION}"
@@ -46,6 +56,47 @@ def install(debug=False, clean=False):
     copy_from_ctr_image(
         NYDUS_SNAPSHOTTER_IMAGE_TAG, ctr_binaries, host_binaries, requires_sudo=True
     )
+
+    # Populate the host-sharing config file
+    if clean:
+        rmtree(NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG)
+
+    if not exists(NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG):
+        host_sharing_config = """
+version = 1
+root = "/var/lib/containerd-nydus"
+address = "/run/containerd-nydus/containerd-nydus-grpc.sock"
+daemon_mode = "none"
+
+[system]
+enable = true
+address = "/run/containerd-nydus/system.sock"
+
+[daemon]
+fs_driver = "blockdev"
+nydusimage_path = "/usr/local/bin/nydus-image"
+
+[remote]
+skip_ssl_verify = true
+
+[snapshot]
+enable_kata_volume = true
+
+[experimental.tarfs]
+enable_tarfs = true
+mount_tarfs_on_host = false
+export_mode = "image_block_with_verity"
+"""
+        cmd = """
+sudo sh -c 'cat <<EOF > {destination_file}
+{file_contents}
+EOF'
+""".format(
+            destination_file=NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG,
+            file_contents=host_sharing_config,
+        )
+
+        run(cmd, shell=True, check=True)
 
     # Remove all nydus config for a clean start
     if clean:
@@ -87,13 +138,14 @@ def set_log_level(ctx, log_level):
         )
         return
 
-    updated_toml_str = """
-    [log]
-    level = "{log_level}"
-    """.format(
-        log_level=log_level
-    )
-    update_toml(NYDUS_SNAPSHOTTER_CONFIG_FILE, updated_toml_str)
+    for config_file in NYDUS_SNAPSHOTTER_CONFIG_FILES:
+        updated_toml_str = """
+        [log]
+        level = "{log_level}"
+        """.format(
+            log_level=log_level
+        )
+        update_toml(config_file, updated_toml_str)
 
     restart_nydus_snapshotter()
 
@@ -148,3 +200,54 @@ def hot_replace(ctx):
         run(docker_cmd, shell=True, check=True)
 
     restart_nydus_snapshotter()
+
+
+@task
+def set_mode(ctx, mode):
+    """
+    Set the nydus-snapshotter operation mode: 'guest-pulling', or 'host-sharing'
+    """
+    if mode not in ["guest-pulling", "host-sharing"]:
+        print(f"ERROR: unrecognised nydus-snapshotter mode: {mode}")
+        print("ERROR: mode must be one in: ['guest-pulling', 'host-sharing']")
+        return
+
+    config_file = (
+        NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG
+        if mode == "host-sharing"
+        else NYDUS_SNAPSHOTTER_GUEST_PULL_CONFIG
+    )
+    exec_start = (
+        f"{NYDUS_SNAPSHOTTER_HOST_BINPATH}/containerd-nydus-grpc-hybrid "
+        f"--config ${config_file} --log-to-stdout"
+    )
+
+    service_config = """
+[Unit]
+Description=Nydus snapshotter
+After=network.target local-fs.target
+Before=containerd.service
+
+[Service]
+ExecStart={}
+
+[Install]
+RequiredBy=containerd.service
+""".format(
+        exec_start
+    )
+
+    service_path = "/etc/systemd/system/nydus-snapshotter.service"
+    cmd = """
+sudo sh -c 'cat <<EOF > {destination_file}
+{file_contents}
+EOF'
+""".format(
+        destination_file=service_path,
+        file_contents=service_config,
+    )
+    run(cmd, shell=True, check=True)
+
+    # Reload systemd to apply the new service configuration
+    run("sudo systemctl daemon-reload", shell=True, check=True)
+    run("sudo systemctl restart nydus-snapshotter.service", shell=True, check=True)
