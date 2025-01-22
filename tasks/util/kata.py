@@ -74,9 +74,16 @@ def copy_from_kata_workon_ctr(
             ctr_path,
             host_path,
         )
+
         if sudo:
             docker_cmd = "sudo {}".format(docker_cmd)
+        if debug:
+            print(docker_cmd)
+
         result = run(docker_cmd, shell=True, capture_output=True)
+        assert result.returncode == 0, "Error copying from container: {}".format(
+            result.stderr.decode("utf-8")
+        )
         if debug:
             print(result.stdout.decode("utf-8").strip())
     else:
@@ -94,40 +101,68 @@ def replace_agent(
     """
     Replace the kata-agent with a custom-built one
 
-    Replacing the kata-agent is a bit fiddly, as the kata-agent binary lives
-    inside the initrd guest image that we load to the VM. The replacement
-    includes the following steps:
-    1. Find the initrd file - should be pointed in the Kata config file
-    2. Unpack the initrd
-    3. Replace the init process by the new kata agent
-    4. Re-build the initrd
-    5. Update the kata config to point to the new initrd
-
-    By using the extra_flags optional argument, you can pass a dictionary of
-    host_path: guest_path pairs of files you want to be included in the initrd.
+    We use Kata's `rootfs-builder` to prepare a `rootfs` based on an Ubuntu
+    image with custom packages, then copy into the rootfs additional files
+    that we may need, and finally package it using Kata's `initrd-builder`.
     """
-    # This is a list of files that we want to _always_ include in our custom
-    # agent builds
-    extra_files = {
-        "/etc/hosts": {"path": "/etc/hosts", "mode": "w"},
-        HOST_CERT_PATH: {"path": "/etc/ssl/certs/ca-certificates.crt", "mode": "a"},
-    }
+    # ----- Prepare temporary rootfs directory -----
 
-    # Use a hardcoded path, as we want to always start from a _clean_ initrd
-    initrd_path = join(KATA_IMG_DIR, "kata-containers-initrd-confidential.img")
+    tmp_rootfs_base_dir = "/tmp/sc2-rootfs-build-dir"
+    tmp_rootfs_dir = join(tmp_rootfs_base_dir, "rootfs")
+    tmp_rootfs_scripts_dir = join(tmp_rootfs_base_dir, "osbuilder")
 
-    # Make empty temporary dir to expand the initrd filesystem
-    workdir = "/tmp/qemu-sev-initrd"
-    run("sudo rm -rf {}".format(workdir), shell=True, check=True)
-    makedirs(workdir)
+    if exists(tmp_rootfs_base_dir):
+        out = run(f"sudo rm -rf {tmp_rootfs_base_dir}", shell=True, capture_output=True)
+        assert out.returncode == 0, "Error removing previous rootfs: {}".format(
+            out.stderr.decode("utf-8")
+        )
 
-    # sudo unpack the initrd filesystem
-    zcat_cmd = "sudo bash -c 'zcat {} | cpio -idmv'".format(initrd_path)
-    out = run(zcat_cmd, shell=True, capture_output=True, cwd=workdir)
-    assert out.returncode == 0, "Error unpacking initrd: {}".format(out.stderr)
+    makedirs(tmp_rootfs_base_dir)
+    makedirs(tmp_rootfs_dir)
+    makedirs(tmp_rootfs_scripts_dir)
+    makedirs(join(tmp_rootfs_scripts_dir, "initrd-builder"))
+    makedirs(join(tmp_rootfs_scripts_dir, "rootfs-builder"))
+    makedirs(join(tmp_rootfs_scripts_dir, "rootfs-builder", "ubuntu"))
+    makedirs(join(tmp_rootfs_scripts_dir, "scripts"))
 
-    # Copy the kata-agent in our docker image into `/usr/bin/kata-agent` as
-    # this is the path expected by the kata initrd_builder.sh script
+    # Copy all the tooling/script files we need from the container
+    script_files = [
+        "initrd-builder/initrd_builder.sh",
+        "rootfs-builder/rootfs.sh",
+        "rootfs-builder/ubuntu/config.sh",
+        "rootfs-builder/ubuntu/Dockerfile.in",
+        "rootfs-builder/ubuntu/rootfs_lib.sh",
+        "scripts/lib.sh",
+    ]
+
+    for ctr_path, host_path in zip(
+        [
+            join(
+                KATA_SOURCE_DIR if sc2 else KATA_BASELINE_SOURCE_DIR,
+                "tools/osbuilder",
+                script,
+            )
+            for script in script_files
+        ],
+        [join(tmp_rootfs_scripts_dir, script) for script in script_files],
+    ):
+        copy_from_kata_workon_ctr(
+            ctr_path, host_path, sudo=True, debug=debug, hot_replace=hot_replace
+        )
+
+    # Also copy a policy file needed to build the rootfs
+    copy_from_kata_workon_ctr(
+        join(
+            KATA_SOURCE_DIR if sc2 else KATA_BASELINE_SOURCE_DIR,
+            "src/kata-opa/allow-all.rego",
+        ),
+        join(tmp_rootfs_base_dir, "allow-all.rego"),
+        sudo=True,
+        debug=debug,
+        hot_replace=hot_replace,
+    )
+
+    # Finally, also copy our kata agent
     agent_host_path = join(
         KATA_AGENT_SOURCE_DIR if sc2 else KATA_BASELINE_AGENT_SOURCE_DIR,
         "target",
@@ -135,26 +170,49 @@ def replace_agent(
         "release",
         "kata-agent",
     )
-    agent_initrd_path = join(workdir, "usr/bin/kata-agent")
     copy_from_kata_workon_ctr(
         agent_host_path,
-        agent_initrd_path,
+        join(tmp_rootfs_base_dir, "kata-agent"),
         sudo=True,
         debug=debug,
         hot_replace=hot_replace,
     )
 
-    # We also need to manually copy the agent to <root_fs>/sbin/init (note that
-    # <root_fs>/init is a symlink to <root_fs>/sbin/init)
-    alt_agent_initrd_path = join(workdir, "sbin", "init")
-    run("sudo rm {}".format(alt_agent_initrd_path), shell=True, check=True)
-    copy_from_kata_workon_ctr(
-        agent_host_path,
-        alt_agent_initrd_path,
-        sudo=True,
-        debug=debug,
-        hot_replace=hot_replace,
+    # ----- Populate rootfs with base ubuntu using Kata's scripts -----
+
+    out = run("sudo apt install -y makedev multistrap", shell=True, capture_output=True)
+    assert out.returncode == 0, "Error preparing rootfs: {}".format(
+        out.stderr.decode("utf-8")
     )
+
+    rootfs_builder_dir = join(tmp_rootfs_scripts_dir, "rootfs-builder")
+    work_env = {
+        "AGENT_INIT": "yes",
+        "AGENT_POLICY_FILE": join(tmp_rootfs_base_dir, "allow-all.rego"),
+        "AGENT_SOURCE_BIN": join(tmp_rootfs_base_dir, "kata-agent"),
+        "DMVERITY_SUPPORT": "yes",
+        "ROOTFS_DIR": tmp_rootfs_dir,
+    }
+    rootfs_builder_cmd = f"sudo -E {rootfs_builder_dir}/rootfs.sh ubuntu > /dev/null"
+    out = run(
+        rootfs_builder_cmd,
+        shell=True,
+        env=work_env,
+        cwd=rootfs_builder_dir,
+        capture_output=True,
+    )
+    assert out.returncode == 0, "Error preparing rootfs: {}".format(
+        out.stderr.decode("utf-8")
+    )
+    if debug:
+        print(out.stdout.decode("utf-8").strip())
+
+    # ----- Add extra files to the rootfs -----
+
+    extra_files = {
+        "/etc/hosts": {"path": "/etc/hosts", "mode": "w"},
+        HOST_CERT_PATH: {"path": "/etc/ssl/certs/ca-certificates.crt", "mode": "a"},
+    }
 
     # Include any extra files that the caller may have provided
     if extra_files is not None:
@@ -165,7 +223,7 @@ def replace_agent(
             if rel_guest_path.startswith("/"):
                 rel_guest_path = rel_guest_path[1:]
 
-            guest_path = join(workdir, rel_guest_path)
+            guest_path = join(tmp_rootfs_dir, rel_guest_path)
             if not exists(dirname(guest_path)):
                 run(
                     "sudo mkdir -p {}".format(dirname(guest_path)),
@@ -186,41 +244,13 @@ def replace_agent(
                     check=True,
                 )
 
-    # Pack the initrd again (copy the script from the container into a
-    # temporarly location). Annoyingly, we also need to copy a bash script in
-    # the same relative directory structure (cuz bash).
-    kata_tmp_scripts = "/tmp/osbuilder"
-    run(
-        "rm -rf {} && mkdir -p {} {}".format(
-            kata_tmp_scripts,
-            join(kata_tmp_scripts, "scripts"),
-            join(kata_tmp_scripts, "initrd-builder"),
-        ),
-        shell=True,
-        check=True,
-    )
-    ctr_initrd_builder_path = join(
-        KATA_SOURCE_DIR, "tools", "osbuilder", "initrd-builder", "initrd_builder.sh"
-    )
-    ctr_lib_path = join(KATA_SOURCE_DIR, "tools", "osbuilder", "scripts", "lib.sh")
-    initrd_builder_path = join(kata_tmp_scripts, "initrd-builder", "initrd_builder.sh")
-    copy_from_kata_workon_ctr(
-        ctr_initrd_builder_path,
-        initrd_builder_path,
-        debug=debug,
-        hot_replace=hot_replace,
-    )
-    copy_from_kata_workon_ctr(
-        ctr_lib_path,
-        join(kata_tmp_scripts, "scripts", "lib.sh"),
-        debug=debug,
-        hot_replace=hot_replace,
-    )
+    # ----- Pack rootfs into initrd using Kata's script -----
+
     work_env = {"AGENT_INIT": "yes"}
-    initrd_pack_cmd = "sudo {} -o {} {}".format(
-        initrd_builder_path,
+    initrd_pack_cmd = "sudo -E {} -o {} {}".format(
+        join(tmp_rootfs_scripts_dir, "initrd-builder", "initrd_builder.sh"),
         dst_initrd_path,
-        workdir,
+        tmp_rootfs_dir,
     )
     out = run(initrd_pack_cmd, shell=True, env=work_env, capture_output=True)
     assert out.returncode == 0, "Error packing initrd: {}".format(
