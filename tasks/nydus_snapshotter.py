@@ -218,8 +218,8 @@ def set_mode(ctx, mode):
         else NYDUS_SNAPSHOTTER_GUEST_PULL_CONFIG
     )
     exec_start = (
-        f"{NYDUS_SNAPSHOTTER_HOST_BINPATH}/containerd-nydus-grpc-hybrid "
-        f"--config ${config_file} --log-to-stdout"
+        f"{NYDUS_SNAPSHOTTER_HOST_BINPATH}/containerd-nydus-grpc "
+        f"--config {config_file} --log-to-stdout"
     )
 
     service_config = """
