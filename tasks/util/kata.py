@@ -1,4 +1,4 @@
-from os import makedirs
+from os import environ, makedirs
 from os.path import dirname, exists, join
 from subprocess import run
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
@@ -10,9 +10,11 @@ from tasks.util.env import (
     KATA_RUNTIMES,
     KATA_WORKON_CTR_NAME,
     KATA_IMAGE_TAG,
+    PAUSE_IMAGE_REPO,
     SC2_RUNTIMES,
 )
 from tasks.util.registry import HOST_CERT_PATH
+from tasks.util.versions import PAUSE_IMAGE_VERSION
 from tasks.util.toml import remove_entry_from_toml, update_toml
 
 # These paths are hardcoded in the docker image: ./docker/kata.dockerfile
@@ -90,6 +92,69 @@ def copy_from_kata_workon_ctr(
         # If not hot-replacing, use the built-in method to copy from a
         # container rootfs without initializing it
         copy_from_ctr_image(KATA_IMAGE_TAG, [ctr_path], [host_path], requires_sudo=sudo)
+
+
+def build_pause_image(sc2, debug, hot_replace):
+    """
+    When we create a rootfs for CoCo, we need to embed the pause image into
+    it. As a consequence, we need to build the tarball first.
+    """
+    pause_image_build_dir = "/tmp/sc2-pause-image-build-dir"
+
+    if exists(pause_image_build_dir):
+        run(f"sudo rm -rf {pause_image_build_dir}", shell=True, check=True)
+
+    makedirs(pause_image_build_dir)
+    makedirs(join(pause_image_build_dir, "static-build"))
+    makedirs(join(pause_image_build_dir, "scripts"))
+
+    script_files = ["static-build/pause-image/", "scripts/lib.sh"]
+    for ctr_path, host_path in zip(
+        [
+            join(
+                KATA_SOURCE_DIR if sc2 else KATA_BASELINE_SOURCE_DIR,
+                "tools/packaging",
+                script,
+            )
+            for script in script_files
+        ],
+        [join(pause_image_build_dir, script) for script in script_files],
+    ):
+        copy_from_kata_workon_ctr(
+            ctr_path, host_path, sudo=False, debug=debug, hot_replace=hot_replace
+        )
+
+    # Build pause image
+    work_env = environ.update(
+        {
+            "pause_image_repo": PAUSE_IMAGE_REPO,
+            "pause_image_version": PAUSE_IMAGE_VERSION,
+        }
+    )
+    out = run(
+        "./build.sh",
+        shell=True,
+        cwd=join(pause_image_build_dir, "static-build", "pause-image"),
+        env=work_env,
+        capture_output=True,
+    )
+    assert out.returncode == 0, "Error building pause image: {}".format(
+        out.stderr.decode("utf-8")
+    )
+
+    # Generate tarball of pause bundle
+    pause_bundle_tarball_name = "pause_bundle_sc2.tar.xz"
+    tar_cmd = f"tar -cJf {pause_bundle_tarball_name} pause_bundle"
+    run(
+        tar_cmd,
+        shell=True,
+        check=True,
+        cwd=join(pause_image_build_dir, "static-build", "pause-image"),
+    )
+
+    return join(
+        pause_image_build_dir, "static-build", "pause-image", pause_bundle_tarball_name
+    )
 
 
 def replace_agent(
@@ -185,15 +250,25 @@ def replace_agent(
         out.stderr.decode("utf-8")
     )
 
+    # WARNING: for the time being we are building the same rootfs for
+    # confidential and non-confidential
     rootfs_builder_dir = join(tmp_rootfs_scripts_dir, "rootfs-builder")
     work_env = {
         "AGENT_INIT": "yes",
         "AGENT_POLICY_FILE": join(tmp_rootfs_base_dir, "allow-all.rego"),
         "AGENT_SOURCE_BIN": join(tmp_rootfs_base_dir, "kata-agent"),
+        "CONFIDENTIAL_GUEST": "yes",
         "DMVERITY_SUPPORT": "yes",
+        "MEASURED_ROOTFS": "yes",
+        # WARNING: even though only confidential rootfs-es need the pause
+        # image bundle, we also need it to run `qemu-coco-dev`
+        "PAUSE_IMAGE_TARBALL": build_pause_image(
+            sc2=sc2, debug=debug, hot_replace=hot_replace
+        ),
+        "PULL_TYPE": "default",
         "ROOTFS_DIR": tmp_rootfs_dir,
     }
-    rootfs_builder_cmd = f"sudo -E {rootfs_builder_dir}/rootfs.sh ubuntu > /dev/null"
+    rootfs_builder_cmd = f"sudo -E {rootfs_builder_dir}/rootfs.sh ubuntu"
     out = run(
         rootfs_builder_cmd,
         shell=True,
@@ -256,6 +331,8 @@ def replace_agent(
     assert out.returncode == 0, "Error packing initrd: {}".format(
         out.stderr.decode("utf-8")
     )
+    if debug:
+        print(out.stdout.decode("utf-8").strip())
 
     # Lastly, update the Kata config to point to the new initrd
     target_runtimes = SC2_RUNTIMES if sc2 else KATA_RUNTIMES

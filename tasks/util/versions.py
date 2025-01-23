@@ -13,6 +13,7 @@ CALICO_VERSION = "3.28.1"
 CNI_VERSION = "1.3.0"
 CRICTL_VERSION = "1.28.0"
 K9S_VERSION = "0.32.5"
+PAUSE_IMAGE_VERSION = "3.9"
 
 # Container image managament versions
 REGISTRY_VERSION = "2.8"
@@ -25,3 +26,6 @@ NYDUS_SNAPSHOTTER_VERSION = "0.15.0"
 
 # Knative versions
 KNATIVE_VERSION = "1.15.0"
+
+# Kernel versions
+GUEST_KERNEL_VERSION = "6.7"

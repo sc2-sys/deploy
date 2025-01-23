@@ -8,6 +8,7 @@ from tasks.demo_apps import (
 )
 from tasks.k8s import install as k8s_tooling_install
 from tasks.k9s import install as k9s_install
+from tasks.kernel import build_guest as build_guest_kernel
 from tasks.knative import install as knative_install
 from tasks.kubeadm import create as k8s_create, destroy as k8s_destroy
 from tasks.nydus_snapshotter import install as nydus_snapshotter_install
@@ -44,7 +45,7 @@ from tasks.util.registry import (
     stop as stop_local_registry,
 )
 from tasks.util.toml import update_toml
-from tasks.util.versions import COCO_VERSION, KATA_VERSION
+from tasks.util.versions import COCO_VERSION, GUEST_KERNEL_VERSION, KATA_VERSION
 from time import sleep
 
 
@@ -262,6 +263,11 @@ def deploy(ctx, debug=False, clean=False):
 
     # Install the nydusify tool
     nydus_install()
+
+    # Build and install the guest VM kernel
+    print_dotted_line(f"Build and install guest VM kernel (v{GUEST_KERNEL_VERSION})")
+    build_guest_kernel()
+    print("Success!")
 
     # Start a local docker registry (must happen before knative installation,
     # as we rely on it to host our sidecar image)
