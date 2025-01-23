@@ -26,7 +26,6 @@ def build_guest(debug=False, hot_replace=False):
     makedirs(join(kernel_build_dir, "kernel"))
     makedirs(join(kernel_build_dir, "scripts"))
 
-    # Prefix: tools/packaging
     script_files = [
         "kernel/build-kernel.sh",
         "kernel/configs/",
@@ -56,7 +55,7 @@ def build_guest(debug=False, hot_replace=False):
         )
 
     build_kernel_base_cmd = [
-        "./build-kernel.sh -x -f" f" -v {GUEST_KERNEL_VERSION}",
+        f"./build-kernel.sh -x -f -v {GUEST_KERNEL_VERSION}",
         "-u 'https://cdn.kernel.org/pub/linux/kernel/v{}.x/'".format(
             GUEST_KERNEL_VERSION.split(".")[0]
         ),
@@ -77,7 +76,6 @@ def build_guest(debug=False, hot_replace=False):
             print(out.stdout.decode("utf-8"))
 
     # Copy the built kernel into the desired path
-    # "./build-kernel.sh -x -f -v 6.7 setup"
     with open(join(kernel_build_dir, "kernel", "kata_config_version"), "r") as fh:
         kata_config_version = fh.read()
         kata_config_version = kata_config_version.strip()

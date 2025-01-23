@@ -250,8 +250,6 @@ def replace_agent(
         out.stderr.decode("utf-8")
     )
 
-    # WARNING: for the time being we are building the same rootfs for
-    # confidential and non-confidential
     rootfs_builder_dir = join(tmp_rootfs_scripts_dir, "rootfs-builder")
     work_env = {
         "AGENT_INIT": "yes",
@@ -260,8 +258,6 @@ def replace_agent(
         "CONFIDENTIAL_GUEST": "yes",
         "DMVERITY_SUPPORT": "yes",
         "MEASURED_ROOTFS": "yes",
-        # WARNING: even though only confidential rootfs-es need the pause
-        # image bundle, we also need it to run `qemu-coco-dev`
         "PAUSE_IMAGE_TARBALL": build_pause_image(
             sc2=sc2, debug=debug, hot_replace=hot_replace
         ),
