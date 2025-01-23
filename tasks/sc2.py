@@ -264,11 +264,6 @@ def deploy(ctx, debug=False, clean=False):
     # Install the nydusify tool
     nydus_install()
 
-    # Build and install the guest VM kernel
-    print_dotted_line(f"Build and install guest VM kernel (v{GUEST_KERNEL_VERSION})")
-    build_guest_kernel()
-    print("Success!")
-
     # Start a local docker registry (must happen before knative installation,
     # as we rely on it to host our sidecar image)
     start_local_registry(debug=debug, clean=clean)
@@ -295,6 +290,12 @@ def deploy(ctx, debug=False, clean=False):
     # Install sc2 runtime with patches
     print_dotted_line(f"Installing SC2 (v{COCO_VERSION})")
     install_sc2_runtime(debug=debug)
+    print("Success!")
+
+    # Build and install the guest VM kernel (must be after installing SC2, so
+    # that we can patch all config files)
+    print_dotted_line(f"Build and install guest VM kernel (v{GUEST_KERNEL_VERSION})")
+    build_guest_kernel()
     print("Success!")
 
     # Once we are done with installing components, restart containerd
