@@ -1,6 +1,6 @@
 from os.path import dirname, expanduser, realpath, join
 from subprocess import run
-from tasks.util.versions import KATA_VERSION
+from tasks.util.versions import KATA_VERSION, PAUSE_IMAGE_VERSION
 
 PROJ_ROOT = dirname(dirname(dirname(realpath(__file__))))
 
@@ -18,6 +18,8 @@ K8S_ADMIN_FILE = join(CONF_FILES_DIR, "kubeadm.conf")
 K8S_CONFIG_FILE = "/etc/kubernetes/admin.conf"
 # This value is hardcoded in ./.config/kubeadm.conf
 CRI_RUNTIME_SOCKET = "unix:///run/containerd/containerd.sock"
+PAUSE_IMAGE_REPO = "docker://registry.k8s.io/pause"
+PAUSE_IMAGE = f"{PAUSE_IMAGE_REPO}:{PAUSE_IMAGE_VERSION}"
 
 # Containerd
 

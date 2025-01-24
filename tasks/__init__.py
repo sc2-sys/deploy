@@ -7,6 +7,7 @@ from . import cosign
 from . import demo_apps
 from . import format_code
 from . import gc
+from . import kernel
 from . import k8s
 from . import k9s
 from . import kata
@@ -37,6 +38,7 @@ ns = Collection(
     k9s,
     kata,
     kbs,
+    kernel,
     knative,
     kubeadm,
     nydus,
