@@ -205,16 +205,16 @@ def hot_replace(ctx):
 @task
 def set_mode(ctx, mode):
     """
-    Set the nydus-snapshotter operation mode: 'guest-pulling', or 'host-sharing'
+    Set the nydus-snapshotter operation mode: 'guest-pull', or 'host-share'
     """
-    if mode not in ["guest-pulling", "host-sharing"]:
+    if mode not in ["guest-pull", "host-share"]:
         print(f"ERROR: unrecognised nydus-snapshotter mode: {mode}")
-        print("ERROR: mode must be one in: ['guest-pulling', 'host-sharing']")
+        print("ERROR: mode must be one in: ['guest-pull', 'host-share']")
         return
 
     config_file = (
         NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG
-        if mode == "host-sharing"
+        if mode == "host-share"
         else NYDUS_SNAPSHOTTER_GUEST_PULL_CONFIG
     )
     exec_start = (
