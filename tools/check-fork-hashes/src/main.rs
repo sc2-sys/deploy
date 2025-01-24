@@ -104,14 +104,6 @@ fn main() {
         },
         {
             let mut dict = HashMap::new();
-            dict.insert("repo_name", "guest-components");
-            dict.insert("version_str", "COCO_VERSION");
-            dict.insert("ctr_src_paths", "/usr/src/guest-components");
-            dict.insert("branches", "sc2-main");
-            dict
-        },
-        {
-            let mut dict = HashMap::new();
             dict.insert("repo_name", "containerd");
             dict.insert("version_str", "CONTAINERD_VERSION");
             dict.insert("ctr_src_paths", "/go/src/github.com/sc2-sys/containerd");
