@@ -1,5 +1,5 @@
 from invoke import task
-from os import makedirs
+from os import environ, makedirs
 from os.path import exists, join
 from subprocess import run
 from tasks.containerd import install as containerd_install
@@ -47,6 +47,31 @@ from tasks.util.registry import (
 from tasks.util.toml import update_toml
 from tasks.util.versions import COCO_VERSION, GUEST_KERNEL_VERSION, KATA_VERSION
 from time import sleep
+
+
+def start_vm_cache(debug=False):
+    vm_cache_dir = join(PROJ_ROOT, "vm-cache")
+
+    # Build the VM cache server
+    if debug:
+        print("Building VM cache wrapper...")
+    result = run(
+        "cargo build --release", cwd=vm_cache_dir, shell=True, capture_output=True
+    )
+    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+    if debug:
+        print(result.stdout.decode("utf-8").strip())
+
+    # Run the VM cache server in the background
+    if debug:
+        print("Running VM cache wrapper in background mode...")
+    run(
+        "sudo -E target/release/vm-cache background > /dev/null 2>&1",
+        cwd=vm_cache_dir,
+        env=environ,
+        shell=True,
+        check=True,
+    )
 
 
 def install_sc2_runtime(debug=False):
@@ -164,30 +189,6 @@ def install_sc2_runtime(debug=False):
         sc2=True,
     )
 
-    # ---------- VM Cache ---------
-
-    vm_cache_dir = join(PROJ_ROOT, "vm-cache")
-
-    # Build the VM cache server
-    if debug:
-        print("Building VM cache wrapper...")
-    result = run(
-        "cargo build --release", cwd=vm_cache_dir, shell=True, capture_output=True
-    )
-    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
-    if debug:
-        print(result.stdout.decode("utf-8").strip())
-
-    # Run the VM cache server in the background
-    if debug:
-        print("Running VM cache wrapper in background mode...")
-    run(
-        "sudo -E target/release/vm-cache background > /dev/null 2>&1",
-        cwd=vm_cache_dir,
-        shell=True,
-        check=True,
-    )
-
 
 @task(default=True)
 def deploy(ctx, debug=False, clean=False):
@@ -300,6 +301,12 @@ def deploy(ctx, debug=False, clean=False):
 
     # Once we are done with installing components, restart containerd
     restart_containerd(debug=debug)
+
+    # Start the VM cache at the end so that we can pick up the latest config
+    # changes
+    print_dotted_line(f"Starting cVM cache...")
+    start_vm_cache(debug=debug)
+    print_dotted_line(f"Success!")
 
     # Push demo apps to local registry for easy testing
     push_demo_apps_to_local_registry(debug=debug)
