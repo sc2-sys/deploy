@@ -1,5 +1,5 @@
 from re import findall
-from os import remove
+from os import getuid, getgid, remove, stat
 from os.path import basename, join
 from subprocess import run
 from toml import (
@@ -55,7 +55,20 @@ def update_toml(toml_path, updates_toml, requires_root=True):
                     express arbitrarily complex TOML files)
     - requires_root: whether the TOML file is root-owned (usually the case)
     """
-    conf_file = toml_load(toml_path)
+    if requires_root:
+        new_toml_file_path = join("/tmp", basename(toml_path) + "-read")
+        run(f"sudo cp {toml_path} {new_toml_file_path}", shell=True, check=True)
+        run(
+            "sudo chown {}:{} {}".format(getuid(), getgid(), new_toml_file_path),
+            shell=True,
+            check=True,
+        )
+
+        conf_file = toml_load(new_toml_file_path)
+        run(f"sudo rm {new_toml_file_path}", shell=True, check=True)
+    else:
+        conf_file = toml_load(toml_path)
+
     merge_dicts_recursively(conf_file, toml_load_from_string(updates_toml))
 
     if requires_root:
@@ -101,6 +114,26 @@ def read_value_from_toml(toml_file_path, toml_path, tolerate_missing=False):
     """
     Return the value in a TOML specified by a "." delimited TOML path
     """
+    # Check if the pointed-to file is sudo-owned
+    try:
+        stat_info = stat(toml_file_path)
+    except FileNotFoundError:
+        if tolerate_missing:
+            return ""
+        print(f"ERROR: cannot find TOML at path: {toml_file_path}")
+        raise RuntimeError("Error reading value from toml")
+
+    if stat_info.st_uid == 0:
+        new_toml_file_path = join("/tmp", basename(toml_file_path))
+        run(f"sudo cp {toml_file_path} {new_toml_file_path}", shell=True, check=True)
+        run(
+            "sudo chown {}:{} {}".format(getuid(), getgid(), new_toml_file_path),
+            shell=True,
+            check=True,
+        )
+
+        toml_file_path = new_toml_file_path
+
     toml_file = toml_load(toml_file_path)
     for toml_level in split_dot_preserve_quotes(toml_path):
         if toml_level not in toml_file:
