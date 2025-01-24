@@ -116,6 +116,10 @@ def install_sc2_runtime(debug=False):
         # FIXME: we need to update the default_memory to be able to run the
         # Knative chaining test. This will change when memory hot-plugging
         # is supported
+        # FIXME 2: we need to set the default max vcpus, as the kata-runtime,
+        # and containerd-shim seem to give it different default values. Not
+        # an issue as hot-plugging vCPUs is not supported so we can never
+        # exceed the default (1).
         updated_toml_str = """
         [factory]
         vm_cache_number = {vm_cache_number}
@@ -124,6 +128,7 @@ def install_sc2_runtime(debug=False):
         hot_plug_vfio = "root-port"
         pcie_root_port = 2
         default_memory = 6144
+        default_maxvcpus = 1
         """.format(
             vm_cache_number=VM_CACHE_SIZE
         )

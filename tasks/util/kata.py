@@ -194,6 +194,7 @@ def replace_agent(
     script_files = [
         "initrd-builder/initrd_builder.sh",
         "rootfs-builder/rootfs.sh",
+        "rootfs-builder/nvidia/",
         "rootfs-builder/ubuntu/config.sh",
         "rootfs-builder/ubuntu/Dockerfile.in",
         "rootfs-builder/ubuntu/rootfs_lib.sh",

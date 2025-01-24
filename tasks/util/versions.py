@@ -1,6 +1,6 @@
 # CoCo versions (note that the CoCo release pins the Kata Version)
-COCO_VERSION = "0.10.0"
-KATA_VERSION = "3.9.0"
+COCO_VERSION = "0.12.0"
+KATA_VERSION = "3.13.0"
 
 # Base software versions
 GO_VERSION = "1.23.0"

@@ -160,7 +160,7 @@ def start(debug=False, clean=False):
     """.format(
         containerd_base_certs_dir=containerd_base_certs_dir
     )
-    update_toml(CONTAINERD_CONFIG_FILE, updated_toml_str)
+    update_toml(CONTAINERD_CONFIG_FILE, updated_toml_str, requires_root=True)
 
     # Add the correspnding configuration to containerd
     containerd_certs_dir = join(containerd_base_certs_dir, LOCAL_REGISTRY_URL)
