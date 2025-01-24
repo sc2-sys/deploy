@@ -63,7 +63,11 @@ def build_guest(debug=False, hot_replace=False):
     build_kernel_base_cmd = " ".join(build_kernel_base_cmd)
 
     # Install APT deps needed to build guest kernel
-    out = run("sudo apt install -y bison flex libelf-dev libssl-dev make", shell=True, capture_output=True)
+    out = run(
+        "sudo apt install -y bison flex libelf-dev libssl-dev make",
+        shell=True,
+        capture_output=True,
+    )
     assert out.returncode == 0, "Error installing deps: {}".format(
         out.stderr.decode("utf-8")
     )

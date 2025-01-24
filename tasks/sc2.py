@@ -304,9 +304,9 @@ def deploy(ctx, debug=False, clean=False):
 
     # Start the VM cache at the end so that we can pick up the latest config
     # changes
-    print_dotted_line(f"Starting cVM cache...")
+    print_dotted_line("Starting cVM cache...")
     start_vm_cache(debug=debug)
-    print_dotted_line(f"Success!")
+    print("Success!")
 
     # Push demo apps to local registry for easy testing
     push_demo_apps_to_local_registry(debug=debug)
