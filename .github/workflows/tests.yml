@@ -171,6 +171,68 @@ jobs:
           sleep 5
           echo "Knative test succesful!"
 
+      - name: "Run nydus host-share test"
+        run: |
+          # Change the snapshotter mode
+          ./bin/inv_wrapper.sh nydus-snapshotter.set-mode host-share
+
+          export SC2_RUNTIME_CLASS=qemu-${{ matrix.tee }}-sc2
+          export POD_LABEL="apps.sc2.io/name=helloworld-py"
+
+          # ----- Python Test ----
+
+          echo "Running python test..."
+          envsubst < ./demo-apps/helloworld-py-nydus/deployment.yaml | ./bin/kubectl apply -f -
+
+          # Wait for pod to be ready
+          until [ "$(./bin/kubectl get pods -l ${POD_LABEL} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}')" = "True" ]; do echo "Waiting for pod to be ready..."; sleep 2; done
+          sleep 1
+
+          # Get the pod's IP
+          service_ip=$(./bin/kubectl get services -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}')
+          [ "$(curl --retry 3 -X GET ${service_ip}:8080)" = "Hello World!" ]
+          envsubst < ./demo-apps/helloworld-py-nydus/deployment.yaml | ./bin/kubectl delete -f -
+
+          # Wait for pod to be deleted
+          ./bin/kubectl wait --for=delete -l ${POD_LABEL} pod --timeout=30s
+
+          # Extra cautionary sleep
+          sleep 5
+          echo "Python test succesful!"
+
+          # ----- Knative Test ----
+          envsubst < ./demo-apps/helloworld-knative-nydus/service.yaml | ./bin/kubectl apply -f -
+          sleep 1
+
+          # Get the service URL
+          service_url=$(./bin/kubectl get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
+          [ "$(curl --retry 3 ${service_url})" = "Hello World!" ]
+
+          # Wait for pod to be deleted
+          envsubst < ./demo-apps/helloworld-knative-nydus/service.yaml | ./bin/kubectl delete -f -
+          ./bin/kubectl wait --for=delete -l ${POD_LABEL} pod --timeout=60s
+
+          # Extra cautionary sleep
+          sleep 5
+          echo "Knative test succesful!"
+
+          # Change the snapshotter mode back again
+          ./bin/inv_wrapper.sh nydus-snapshotter.set-mode guest-pull
+
+      - name: "Enable default-memory annotation"
+        run: |
+          for runtime_class in ${{ matrix.runtime_classes }}; do
+            ./bin/inv_wrapper.sh kata.enable-annotation default_memory --runtime ${runtime_class}
+            # Here we benefit that the last variable is the one we want to use
+            # for vm-cache
+            export SC2_RUNTIME_CLASS=${runtime_class}
+          done
+
+          # Aftre changing the annotation of the qemu-snp-sc2 runtime class we
+          # need to restart the VM cache
+          sudo -E ./vm-cache/target/release/vm-cache stop
+          sudo -E ./vm-cache/target/release/vm-cache background
+
       - name: "Enable default-memory annotation"
         run: |
           for runtime_class in ${{ matrix.runtime_classes }}; do

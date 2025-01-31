@@ -2,21 +2,34 @@ from invoke import task
 from os.path import exists, join
 from subprocess import run
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
-from tasks.util.env import COCO_ROOT, GHCR_URL, GITHUB_ORG, PROJ_ROOT, print_dotted_line
-from tasks.util.toml import update_toml
+from tasks.util.env import (
+    COCO_ROOT,
+    CONTAINERD_CONFIG_FILE,
+    CONTAINERD_CONFIG_ROOT,
+    GHCR_URL,
+    GITHUB_ORG,
+    KATA_RUNTIMES,
+    PROJ_ROOT,
+    SC2_RUNTIMES,
+    print_dotted_line,
+)
+from tasks.util.toml import read_value_from_toml, update_toml
 from tasks.util.versions import NYDUS_SNAPSHOTTER_VERSION
+
+NYDUS_SNAPSHOTTER_GUEST_PULL_NAME = "nydus"
+NYDUS_SNAPSHOTTER_HOST_SHARE_NAME = "nydus-hs"
 
 NYDUS_SNAPSHOTTER_CONFIG_DIR = join(COCO_ROOT, "share", "nydus-snapshotter")
 NYDUS_SNAPSHOTTER_GUEST_PULL_CONFIG = join(
     NYDUS_SNAPSHOTTER_CONFIG_DIR, "config-coco-guest-pulling.toml"
 )
-NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG = join(
+NYDUS_SNAPSHOTTER_HOST_SHARE_CONFIG = join(
     NYDUS_SNAPSHOTTER_CONFIG_DIR, "config-coco-host-sharing.toml"
 )
 
 NYDUS_SNAPSHOTTER_CONFIG_FILES = [
     NYDUS_SNAPSHOTTER_GUEST_PULL_CONFIG,
-    NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG,
+    NYDUS_SNAPSHOTTER_HOST_SHARE_CONFIG,
 ]
 NYDUS_SNAPSHOTTER_CTR_NAME = "nydus-snapshotter-workon"
 NYDUS_SNAPSHOTTER_IMAGE_TAG = (
@@ -39,10 +52,10 @@ def restart_nydus_snapshotter():
 
 
 def do_purge():
-    # TODO: is this too much/too little?
-    # Seems not enough, we need to delete the images manually with crictl rmi
-    # TODO: delete pause image manually -> something intersting happens!!
-    run("sudo rm -rf /var/lib/containerd-nydus", shell=True, check=True)
+    # Sometimes this may not be enough, and we need to manually delete images
+    # using something like `sudo crictl rmi ...`
+    for snap in [NYDUS_SNAPSHOTTER_HOST_SHARE_NAME, NYDUS_SNAPSHOTTER_GUEST_PULL_NAME]:
+        run(f"sudo rm -rf /var/lib/containerd-{snap}", shell=True, check=True)
 
     restart_nydus_snapshotter()
 
@@ -59,7 +72,7 @@ def install(debug=False, clean=False):
     """
     Install the nydus snapshotter binaries
     """
-    print_dotted_line(f"Installing nydus-snapshotter (v{NYDUS_SNAPSHOTTER_VERSION})")
+    print_dotted_line(f"Installing nydus-snapshotter(s) (v{NYDUS_SNAPSHOTTER_VERSION})")
 
     host_binaries = [
         join(NYDUS_SNAPSHOTTER_HOST_BINPATH, binary)
@@ -73,10 +86,46 @@ def install(debug=False, clean=False):
         NYDUS_SNAPSHOTTER_IMAGE_TAG, ctr_binaries, host_binaries, requires_sudo=True
     )
 
-    if not exists(NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG):
+    # We install nydus with host-sharing as a "different" snapshotter
+    imports = read_value_from_toml(CONTAINERD_CONFIG_FILE, "imports")
+    host_share_import_path = join(
+        CONTAINERD_CONFIG_ROOT,
+        "config.toml.d",
+        f"{NYDUS_SNAPSHOTTER_HOST_SHARE_NAME}-snapshotter.toml",
+    )
+    if host_share_import_path not in imports:
+        config_file = """
+[proxy_plugins]
+  [proxy_plugins.{}]
+        type = "snapshot"
+        address = "/run/containerd-nydus/containerd-nydus-grpc.sock"
+""".format(
+            NYDUS_SNAPSHOTTER_HOST_SHARE_NAME
+        )
+
+        cmd = """
+sudo sh -c 'cat <<EOF > {destination_file}
+{file_contents}
+EOF'
+""".format(
+            destination_file=host_share_import_path,
+            file_contents=config_file,
+        )
+
+        run(cmd, shell=True, check=True)
+
+        imports += [host_share_import_path]
+        updated_toml_str = """
+        imports = [ {sn} ]
+        """.format(
+            sn=",".join([f'"{s}"' for s in imports])
+        )
+        update_toml(CONTAINERD_CONFIG_FILE, updated_toml_str)
+
+    if not exists(NYDUS_SNAPSHOTTER_HOST_SHARE_CONFIG):
         host_sharing_config = """
 version = 1
-root = "/var/lib/containerd-nydus"
+root = "/var/lib/containerd-{nydus_hs_name}"
 address = "/run/containerd-nydus/containerd-nydus-grpc.sock"
 daemon_mode = "none"
 
@@ -86,7 +135,7 @@ address = "/run/containerd-nydus/system.sock"
 
 [daemon]
 fs_driver = "blockdev"
-nydusimage_path = "{}"
+nydusimage_path = "{nydus_image_path}"
 
 [remote]
 skip_ssl_verify = true
@@ -99,7 +148,8 @@ enable_tarfs = true
 mount_tarfs_on_host = false
 export_mode = "image_block_with_verity"
 """.format(
-            join(COCO_ROOT, "bin", "nydus-image")
+            nydus_hs_name=NYDUS_SNAPSHOTTER_HOST_SHARE_NAME,
+            nydus_image_path=join(COCO_ROOT, "bin", "nydus-image"),
         )
 
         cmd = """
@@ -107,7 +157,7 @@ sudo sh -c 'cat <<EOF > {destination_file}
 {file_contents}
 EOF'
 """.format(
-            destination_file=NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG,
+            destination_file=NYDUS_SNAPSHOTTER_HOST_SHARE_CONFIG,
             file_contents=host_sharing_config,
         )
 
@@ -121,6 +171,11 @@ EOF'
     restart_nydus_snapshotter()
 
     print("Success!")
+
+
+@task
+def foo(ctx):
+    install(clean=True, debug=False)
 
 
 @task
@@ -232,7 +287,7 @@ def set_mode(ctx, mode):
         return
 
     config_file = (
-        NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG
+        NYDUS_SNAPSHOTTER_HOST_SHARE_CONFIG
         if mode == "host-share"
         else NYDUS_SNAPSHOTTER_GUEST_PULL_CONFIG
     )
@@ -267,6 +322,23 @@ EOF'
     )
     run(cmd, shell=True, check=True)
 
+    # Update all runtime configurations to use the right snapshotter. We
+    # _always_ avoid having both snapshotters co-existing
+    snap_name = (
+        NYDUS_SNAPSHOTTER_HOST_SHARE_NAME
+        if mode == "host-share"
+        else NYDUS_SNAPSHOTTER_GUEST_PULL_NAME
+    )
+    for runtime in KATA_RUNTIMES + SC2_RUNTIMES:
+        updated_toml_str = """
+        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-{runtime_name}]
+        snapshotter = "{snapshotter_name}"
+        """.format(
+            runtime_name=runtime, snapshotter_name=snap_name
+        )
+        update_toml(CONTAINERD_CONFIG_FILE, updated_toml_str)
+
     # Reload systemd to apply the new service configuration
     run("sudo systemctl daemon-reload", shell=True, check=True)
-    run("sudo systemctl restart nydus-snapshotter.service", shell=True, check=True)
+
+    restart_nydus_snapshotter()

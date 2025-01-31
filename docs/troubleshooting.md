@@ -151,14 +151,27 @@ ctr -n k8s.io content fetch ${IMAGE_NAME}
 the image name is the image tag appearing right before the error message in
 the pod logs.
 
-### Nydus snapshot corruption
+### Rootfs Mount Issue
 
-Sometimes, after hot-replacing the nydus-snapshotter, snapshots become corrupted,
-and we can see the error below.
+Sometimes, if we are mixing and matching different snapshotters, we may run
+into the following error:
 
 ```
 Failed to create pod sandbox: rpc error: code = Unknown desc = failed to create containerd task: failed to create shim task: failed to mount /run/kata-containers/shared/containers/0a583f0691d78e2036425f99bdac8e03302158320c1c55a5c6482cae7e729009/rootfs to /run/kata-containers/0a583f0691d78e2036425f99bdac8e03302158320c1c55a5c6482cae7e729009/rootfs, with error: ENOENT: No such file or directory
 ```
 
-The only solution I found was to bump to a more up-to-date version of nydus.
-This seemed to fix the issue.
+this is because the pause image bundle has not been unpacked correctly. Note
+that the pause image bundle is unpacked into the `/run/kata-containers/shared`
+directory, and then mounted into the `/run/kata-containers/<cid>` one.
+
+This usually happens when containerd believes that we already have the pause
+image, so we do not need to pull it. This prevents the snapshotter from
+generating the respective Kata virtual volumes.
+
+As a rule of thumb, a good fix is to remove all images involved in the app
+from the content store, and purge snapshotter caches:
+
+```bash
+sudo crictl rmi <hash>
+inv nydus-snapshotter.purge
+```
