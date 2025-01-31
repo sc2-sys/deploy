@@ -72,6 +72,20 @@ def cli(ctx, mount_path=join(PROJ_ROOT, "..", "containerd")):
     run("docker exec -it {} bash".format(CONTAINERD_CTR_NAME), shell=True, check=True)
 
 
+@task
+def stop(ctx):
+    """
+    Stop the containerd work-on container
+    """
+    result = run(
+        "docker rm -f {}".format(CONTAINERD_CTR_NAME),
+        shell=True,
+        check=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0
+
+
 def set_log_level(log_level):
     """
     Set containerd's log level, must be one in: info, debug

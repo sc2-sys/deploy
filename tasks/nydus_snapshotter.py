@@ -182,6 +182,20 @@ def cli(ctx, mount_path=join(PROJ_ROOT, "..", "nydus-snapshotter")):
 
 
 @task
+def stop(ctx):
+    """
+    Stop the nydus-snapshotter work-on container
+    """
+    result = run(
+        "docker rm -f {}".format(NYDUS_SNAPSHOTTER_CTR_NAME),
+        shell=True,
+        check=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0
+
+
+@task
 def hot_replace(ctx):
     """
     Replace nydus-snapshotter binaries from running workon container
