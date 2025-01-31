@@ -1,6 +1,5 @@
 from invoke import task
 from os.path import exists, join
-from shutil import rmtree
 from subprocess import run
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
 from tasks.util.env import COCO_ROOT, GHCR_URL, GITHUB_ORG, PROJ_ROOT, print_dotted_line
@@ -39,6 +38,23 @@ def restart_nydus_snapshotter():
     run("sudo service nydus-snapshotter restart", shell=True, check=True)
 
 
+def do_purge():
+    # TODO: is this too much/too little?
+    # Seems not enough, we need to delete the images manually with crictl rmi
+    # TODO: delete pause image manually -> something intersting happens!!
+    run("sudo rm -rf /var/lib/containerd-nydus", shell=True, check=True)
+
+    restart_nydus_snapshotter()
+
+
+@task
+def purge(ctx):
+    """
+    Remove all cached snapshots in the snapshotter cache
+    """
+    do_purge()
+
+
 def install(debug=False, clean=False):
     """
     Install the nydus snapshotter binaries
@@ -57,10 +73,6 @@ def install(debug=False, clean=False):
         NYDUS_SNAPSHOTTER_IMAGE_TAG, ctr_binaries, host_binaries, requires_sudo=True
     )
 
-    # Populate the host-sharing config file
-    if clean:
-        rmtree(NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG)
-
     if not exists(NYDUS_SNAPSHOTTER_HOST_SHARING_CONFIG):
         host_sharing_config = """
 version = 1
@@ -74,7 +86,7 @@ address = "/run/containerd-nydus/system.sock"
 
 [daemon]
 fs_driver = "blockdev"
-nydusimage_path = "/usr/local/bin/nydus-image"
+nydusimage_path = "{}"
 
 [remote]
 skip_ssl_verify = true
@@ -86,7 +98,10 @@ enable_kata_volume = true
 enable_tarfs = true
 mount_tarfs_on_host = false
 export_mode = "image_block_with_verity"
-"""
+""".format(
+            join(COCO_ROOT, "bin", "nydus-image")
+        )
+
         cmd = """
 sudo sh -c 'cat <<EOF > {destination_file}
 {file_contents}
@@ -100,7 +115,7 @@ EOF'
 
     # Remove all nydus config for a clean start
     if clean:
-        run("sudo rm -rf /var/lib/containerd-nydus", shell=True, check=True)
+        do_purge()
 
     # Restart the nydus service
     restart_nydus_snapshotter()
@@ -124,20 +139,10 @@ def build(ctx, nocache=False, push=False):
         run(f"docker push {NYDUS_SNAPSHOTTER_IMAGE_TAG}", shell=True, check=True)
 
 
-@task
-def set_log_level(ctx, log_level):
+def set_log_level(log_level):
     """
     Set the log level for the nydus snapshotter
     """
-    allowed_log_levels = ["info", "debug"]
-    if log_level not in allowed_log_levels:
-        print(
-            "Unsupported log level '{}'. Must be one in: {}".format(
-                log_level, allowed_log_levels
-            )
-        )
-        return
-
     for config_file in NYDUS_SNAPSHOTTER_CONFIG_FILES:
         updated_toml_str = """
         [log]

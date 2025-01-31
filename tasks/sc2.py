@@ -2,16 +2,23 @@ from invoke import task
 from os import environ, makedirs
 from os.path import exists, join
 from subprocess import run
-from tasks.containerd import install as containerd_install
+from tasks.containerd import (
+    install as containerd_install,
+    set_log_level as containerd_set_log_level,
+)
 from tasks.demo_apps import (
     do_push_to_local_registry as push_demo_apps_to_local_registry,
 )
 from tasks.k8s import install as k8s_tooling_install
 from tasks.k9s import install as k9s_install
+from tasks.kata import set_log_level as kata_set_log_level
 from tasks.kernel import build_guest as build_guest_kernel
 from tasks.knative import install as knative_install
 from tasks.kubeadm import create as k8s_create, destroy as k8s_destroy
-from tasks.nydus_snapshotter import install as nydus_snapshotter_install
+from tasks.nydus_snapshotter import (
+    install as nydus_snapshotter_install,
+    set_log_level as nydus_snapshotter_set_log_level,
+)
 from tasks.nydus import do_install as nydus_install
 from tasks.operator import (
     install as operator_install,
@@ -353,3 +360,22 @@ def destroy(ctx, debug=False):
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
     if debug:
         print(result.stdout.decode("utf-8").strip())
+
+
+@task
+def set_log_level(ctx, log_level):
+    """
+    Set log level for all SC2 containers: containerd, kata, and nydus-snapshotter
+    """
+    allowed_log_levels = ["info", "debug"]
+    if log_level not in allowed_log_levels:
+        print(
+            "Unsupported log level '{}'. Must be one in: {}".format(
+                log_level, allowed_log_levels
+            )
+        )
+        return
+
+    containerd_set_log_level(log_level)
+    kata_set_log_level(log_level)
+    nydus_snapshotter_set_log_level(log_level)

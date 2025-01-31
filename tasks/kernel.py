@@ -54,8 +54,10 @@ def build_guest(debug=False, hot_replace=False):
             ctr_path, host_path, sudo=False, debug=debug, hot_replace=hot_replace
         )
 
+    # The -V option enables dm-verity support in the guest (technically only
+    # needed for SC2)
     build_kernel_base_cmd = [
-        f"./build-kernel.sh -x -f -v {GUEST_KERNEL_VERSION}",
+        f"./build-kernel.sh -x -V -f -v {GUEST_KERNEL_VERSION}",
         "-u 'https://cdn.kernel.org/pub/linux/kernel/v{}.x/'".format(
             GUEST_KERNEL_VERSION.split(".")[0]
         ),
@@ -117,4 +119,7 @@ def build_guest(debug=False, hot_replace=False):
 
 @task
 def hot_replace_guest(ctx, debug=False):
+    """
+    Hot-replace guest kernel
+    """
     build_guest(debug=debug, hot_replace=True)

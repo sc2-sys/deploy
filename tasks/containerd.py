@@ -72,20 +72,10 @@ def cli(ctx, mount_path=join(PROJ_ROOT, "..", "containerd")):
     run("docker exec -it {} bash".format(CONTAINERD_CTR_NAME), shell=True, check=True)
 
 
-@task
-def set_log_level(ctx, log_level):
+def set_log_level(log_level):
     """
     Set containerd's log level, must be one in: info, debug
     """
-    allowed_log_levels = ["info", "debug"]
-    if log_level not in allowed_log_levels:
-        print(
-            "Unsupported log level '{}'. Must be one in: {}".format(
-                log_level, allowed_log_levels
-            )
-        )
-        return
-
     updated_toml_str = """
     [debug]
     level = "{log_level}"
