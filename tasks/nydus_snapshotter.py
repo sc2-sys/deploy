@@ -1,4 +1,5 @@
 from invoke import task
+from json import loads as json_loads
 from os.path import exists, join
 from subprocess import run
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
@@ -9,6 +10,7 @@ from tasks.util.env import (
     GHCR_URL,
     GITHUB_ORG,
     KATA_RUNTIMES,
+    LOCAL_REGISTRY_URL,
     PROJ_ROOT,
     SC2_RUNTIMES,
     print_dotted_line,
@@ -52,10 +54,37 @@ def restart_nydus_snapshotter():
 
 
 def do_purge():
-    # Sometimes this may not be enough, and we need to manually delete images
-    # using something like `sudo crictl rmi ...`
+    """
+    Purging the snapshotters for a fresh-start is a two step process. First,
+    we need to remove all nydus metadata. This can be achieved by just
+    bluntly removing `/var/lib/containerd-nydus-*`. Secondly, we need to
+    reset a map that we keep in containerd's image store of what images
+    have we pulled with which snapshotters. This is, essentially, what
+    we see when we run `sudo crictl images`. There's no easy way to clear
+    just this map, so what we do is remove all the images that we may have
+    used.
+    """
+
+    # Clear nydus-snapshots
     for snap in [NYDUS_SNAPSHOTTER_HOST_SHARE_NAME, NYDUS_SNAPSHOTTER_GUEST_PULL_NAME]:
         run(f"sudo rm -rf /var/lib/containerd-{snap}", shell=True, check=True)
+
+    # Clear all possibly used images (only images in our registry, or the
+    # pause container images)
+    cmd = (
+        "sudo crictl --runtime-endpoint unix:///run/containerd/containerd.sock"
+        " images -o json"
+    )
+    rm_cmd = "sudo crictl --runtime-endpoint unix:///run/containerd/containerd.sock rmi"
+    data = json_loads(run(cmd, shell=True, capture_output=True).stdout.decode("utf-8"))
+    for image_data in data["images"]:
+        if any([tag.startswith(LOCAL_REGISTRY_URL) for tag in image_data["repoTags"]]):
+            run("{} {}".format(rm_cmd, image_data["id"]), shell=True, check=True)
+
+        if any(
+            [tag.startswith("registry.k8s.io/pause") for tag in image_data["repoTags"]]
+        ):
+            run("{} {}".format(rm_cmd, image_data["id"]), shell=True, check=True)
 
     restart_nydus_snapshotter()
 
@@ -146,7 +175,7 @@ enable_kata_volume = true
 [experimental.tarfs]
 enable_tarfs = true
 mount_tarfs_on_host = false
-export_mode = "image_block_with_verity"
+export_mode = "layer_block_with_verity"
 """.format(
             nydus_hs_name=NYDUS_SNAPSHOTTER_HOST_SHARE_NAME,
             nydus_image_path=join(COCO_ROOT, "bin", "nydus-image"),
@@ -171,11 +200,6 @@ EOF'
     restart_nydus_snapshotter()
 
     print("Success!")
-
-
-@task
-def foo(ctx):
-    install(clean=True, debug=False)
 
 
 @task

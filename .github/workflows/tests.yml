@@ -230,22 +230,7 @@ jobs:
 
           # Aftre changing the annotation of the qemu-snp-sc2 runtime class we
           # need to restart the VM cache
-          sudo -E ./vm-cache/target/release/vm-cache stop
-          sudo -E ./vm-cache/target/release/vm-cache background
-
-      - name: "Enable default-memory annotation"
-        run: |
-          for runtime_class in ${{ matrix.runtime_classes }}; do
-            ./bin/inv_wrapper.sh kata.enable-annotation default_memory --runtime ${runtime_class}
-            # Here we benefit that the last variable is the one we want to use
-            # for vm-cache
-            export SC2_RUNTIME_CLASS=${runtime_class}
-          done
-
-          # Aftre changing the annotation of the qemu-snp-sc2 runtime class we
-          # need to restart the VM cache
-          sudo -E ./vm-cache/target/release/vm-cache stop
-          sudo -E ./vm-cache/target/release/vm-cache background
+          sudo -E ./vm-cache/target/release/vm-cache restart
 
       - name: "Run knative chaining demo"
         run: |
