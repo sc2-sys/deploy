@@ -27,6 +27,9 @@ do not have confidentiality requirements. To maintain integrity, we mount
 the image with `dm-verity`, and validate the `dm-verity` device as part of
 attestation.
 
+We choose to mount individual layers separately (rather than whole images),
+but we should measure that the former is actually better than the latter.
+
 We could mount encrypted images from the host to the guest, but we would be
 losing on the de-duplication opportunities in the host.
 
