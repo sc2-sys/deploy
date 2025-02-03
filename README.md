@@ -81,6 +81,7 @@ For further documentation, you may want to check these other documents:
 * [CoCo Upgrade](./docs/upgrade_coco.md) - upgrade the current CoCo version.
 * [Guest Components](./docs/guest_components.md) - instructions to patch components inside SC2 guests.
 * [Host Kernel](./docs/host_kernel.md) - bump the kernel version in the host.
+* [Image Pull](./docs/image_pull.md) - details on the image-pulling mechanisms supported in SC2.
 * [K8s](./docs/k8s.md) - documentation about configuring a single-node Kubernetes cluster.
 * [Kata](./docs/kata.md) - instructions to build our custom Kata fork and `initrd` images.
 * [Key Broker Service](./docs/kbs.md) - docs on using and patching the KBS.

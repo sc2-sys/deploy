@@ -16,6 +16,9 @@ the cVM.
 Albeit secure, this mechanism has high performance overheads as the image must
 be pulled every single time, precluding any caching benefits.
 
+To mitigate the performance overheads, we can convert the OCI image to a
+Nydus image, that supports lazy loading of container data.
+
 ### Host Share
 
 The host share mechanism mounts a container image from the host to the guest.
@@ -26,3 +29,23 @@ attestation.
 
 We could mount encrypted images from the host to the guest, but we would be
 losing on the de-duplication opportunities in the host.
+
+### Usage
+
+Each image pull mechanism is implemented as a different remote snapshotter
+in containerd, all of them based on the [nydus-snapshotter](
+https://github.com/containerd/nydus-snapshotter/) plus our modifications.
+
+To switch between different image-pulling mechanisms, you only need to change
+the snapshotter mode:
+
+```bash
+inv nydus-snapshotter.set-mode [guest-pull,host-share]
+```
+
+If you see any snapshotter related issues (either in the `containerd` or the
+`nydus-snapshotter` journal logs), you can purge the snapshotters:
+
+```bash
+inv nydus-snapshotter.purge
+```
