@@ -78,13 +78,33 @@ def do_purge():
     rm_cmd = "sudo crictl --runtime-endpoint unix:///run/containerd/containerd.sock rmi"
     data = json_loads(run(cmd, shell=True, capture_output=True).stdout.decode("utf-8"))
     for image_data in data["images"]:
-        if any([tag.startswith(LOCAL_REGISTRY_URL) for tag in image_data["repoTags"]]):
-            run("{} {}".format(rm_cmd, image_data["id"]), shell=True, check=True)
+        # Try matching both by repoTags and repoDigests (the former is sometimes
+        # empty)
+        if any(
+            [
+                tag.startswith(LOCAL_REGISTRY_URL)
+                for tag in image_data["repoTags"] + image_data["repoDigests"]
+            ]
+        ):
+            run(
+                "{} {} 2> /dev/null".format(rm_cmd, image_data["id"]),
+                shell=True,
+                check=True,
+            )
+            continue
 
         if any(
-            [tag.startswith("registry.k8s.io/pause") for tag in image_data["repoTags"]]
+            [
+                tag.startswith("registry.k8s.io/pause")
+                for tag in image_data["repoTags"] + image_data["repoDigests"]
+            ]
         ):
-            run("{} {}".format(rm_cmd, image_data["id"]), shell=True, check=True)
+            run(
+                "{} {} 2> /dev/null".format(rm_cmd, image_data["id"]),
+                shell=True,
+                check=True,
+            )
+            continue
 
     restart_nydus_snapshotter()
 
