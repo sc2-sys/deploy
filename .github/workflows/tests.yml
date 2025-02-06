@@ -177,7 +177,9 @@ jobs:
           # containred's content store)
           ./bin/inv_wrapper.sh nydus-snapshotter.set-mode host-share
           sleep 2
+
           ./bin/inv_wrapper.sh nydus-snapshotter.purge
+          sleep 2
 
           export SC2_RUNTIME_CLASS=qemu-${{ matrix.tee }}-sc2
           export POD_LABEL="apps.sc2.io/name=helloworld-py"
