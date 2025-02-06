@@ -179,12 +179,12 @@ jobs:
           sleep 2
           ./bin/inv_wrapper.sh nydus-snapshotter.purge
 
+          export SC2_RUNTIME_CLASS=qemu-${{ matrix.tee }}-sc2
+          export POD_LABEL="apps.sc2.io/name=helloworld-py"
+
           # When updating the runtime we update all the config files, so we
           # need to re-start the cache
           sudo -E ./vm-cache/target/release/vm-cache restart
-
-          export SC2_RUNTIME_CLASS=qemu-${{ matrix.tee }}-sc2
-          export POD_LABEL="apps.sc2.io/name=helloworld-py"
 
           # ----- Python Test ----
 
