@@ -176,6 +176,7 @@ jobs:
           # Change the snapshotter mode and purge (necessary to clear
           # containred's content store)
           ./bin/inv_wrapper.sh nydus-snapshotter.set-mode host-share
+          sleep 2
           ./bin/inv_wrapper.sh nydus-snapshotter.purge
 
           export SC2_RUNTIME_CLASS=qemu-${{ matrix.tee }}-sc2
@@ -220,6 +221,7 @@ jobs:
 
           # Change the snapshotter mode back again (and purge)
           ./bin/inv_wrapper.sh nydus-snapshotter.set-mode guest-pull
+          sleep 2
           ./bin/inv_wrapper.sh nydus-snapshotter.purge
 
       - name: "Enable default-memory annotation"
