@@ -189,7 +189,7 @@ jobs:
           # ----- Python Test ----
 
           echo "Running python test..."
-          envsubst < ./demo-apps/helloworld-py-nydus/deployment.yaml | ./bin/kubectl apply -f -
+          envsubst < ./demo-apps/helloworld-py/deployment.yaml | ./bin/kubectl apply -f -
 
           # Wait for pod to be ready
           until [ "$(./bin/kubectl get pods -l ${POD_LABEL} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}')" = "True" ]; do echo "Waiting for pod to be ready..."; sleep 2; done
@@ -198,7 +198,7 @@ jobs:
           # Get the pod's IP
           service_ip=$(./bin/kubectl get services -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}')
           [ "$(curl --retry 3 -X GET ${service_ip}:8080)" = "Hello World!" ]
-          envsubst < ./demo-apps/helloworld-py-nydus/deployment.yaml | ./bin/kubectl delete -f -
+          envsubst < ./demo-apps/helloworld-py/deployment.yaml | ./bin/kubectl delete -f -
 
           # Wait for pod to be deleted
           ./bin/kubectl wait --for=delete -l ${POD_LABEL} pod --timeout=30s
