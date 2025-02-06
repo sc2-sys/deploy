@@ -1,5 +1,5 @@
 from invoke import task
-from json import loads as json_loads
+from json import JSONDecodeError, loads as json_loads
 from os.path import exists, join
 from subprocess import run
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
@@ -53,7 +53,7 @@ def restart_nydus_snapshotter():
     run("sudo service nydus-snapshotter restart", shell=True, check=True)
 
 
-def do_purge():
+def do_purge(debug=False):
     """
     Purging the snapshotters for a fresh-start is a two step process. First,
     we need to remove all nydus metadata. This can be achieved by just
@@ -76,7 +76,13 @@ def do_purge():
         " images -o json"
     )
     rm_cmd = "sudo crictl --runtime-endpoint unix:///run/containerd/containerd.sock rmi"
-    data = json_loads(run(cmd, shell=True, capture_output=True).stdout.decode("utf-8"))
+    try:
+        stdout = run(cmd, shell=True, capture_output=True).stdout.decode("utf-8")
+        data = json_loads(stdout)
+    except JSONDecodeError as e:
+        stderr = run(cmd, shell=True, capture_output=True).stderr.decode("utf-8")
+        print(f"ERROR: run command: {cmd}, got stdout: {stdout}, stderr: {stderr}")
+        raise e
     for image_data in data["images"]:
         # Try matching both by repoTags and repoDigests (the former is sometimes
         # empty)
@@ -86,11 +92,15 @@ def do_purge():
                 for tag in image_data["repoTags"] + image_data["repoDigests"]
             ]
         ):
-            run(
+            result = run(
                 "{} {} 2> /dev/null".format(rm_cmd, image_data["id"]),
                 shell=True,
-                check=True,
+                capture_output=True,
             )
+            assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+            if debug:
+                print(result.stdout.decode("utf-8").strip())
+
             continue
 
         if any(
@@ -99,11 +109,15 @@ def do_purge():
                 for tag in image_data["repoTags"] + image_data["repoDigests"]
             ]
         ):
-            run(
+            result = run(
                 "{} {} 2> /dev/null".format(rm_cmd, image_data["id"]),
                 shell=True,
-                check=True,
+                capture_output=True,
             )
+            assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+            if debug:
+                print(result.stdout.decode("utf-8").strip())
+
             continue
 
     restart_nydus_snapshotter()
@@ -114,7 +128,7 @@ def purge(ctx):
     """
     Remove all cached snapshots in the snapshotter cache
     """
-    do_purge()
+    do_purge(debug=True)
 
 
 def install(debug=False, clean=False):
@@ -214,7 +228,7 @@ EOF'
 
     # Remove all nydus config for a clean start
     if clean:
-        do_purge()
+        do_purge(debug=debug)
 
     # Restart the nydus service
     restart_nydus_snapshotter()
