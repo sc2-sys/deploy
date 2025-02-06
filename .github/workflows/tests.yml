@@ -173,8 +173,10 @@ jobs:
 
       - name: "Run nydus host-share test"
         run: |
-          # Change the snapshotter mode
+          # Change the snapshotter mode and purge (necessary to clear
+          # containred's content store)
           ./bin/inv_wrapper.sh nydus-snapshotter.set-mode host-share
+          ./bin/inv_wrapper.sh nydus-snapshotter.purge
 
           export SC2_RUNTIME_CLASS=qemu-${{ matrix.tee }}-sc2
           export POD_LABEL="apps.sc2.io/name=helloworld-py"
@@ -216,8 +218,9 @@ jobs:
           sleep 5
           echo "Knative test succesful!"
 
-          # Change the snapshotter mode back again
+          # Change the snapshotter mode back again (and purge)
           ./bin/inv_wrapper.sh nydus-snapshotter.set-mode guest-pull
+          ./bin/inv_wrapper.sh nydus-snapshotter.purge
 
       - name: "Enable default-memory annotation"
         run: |
