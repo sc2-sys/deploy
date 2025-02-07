@@ -5,6 +5,7 @@ from subprocess import run
 from tasks.util.containerd import is_containerd_active, restart_containerd
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
 from tasks.util.env import (
+    BIN_DIR,
     CONF_FILES_DIR,
     CONTAINERD_CONFIG_FILE,
     CONTAINERD_CONFIG_ROOT,
@@ -14,7 +15,7 @@ from tasks.util.env import (
     print_dotted_line,
 )
 from tasks.util.toml import update_toml
-from tasks.util.versions import CONTAINERD_VERSION
+from tasks.util.versions import CONTAINERD_VERSION, GO_VERSION
 
 CONTAINERD_CTR_NAME = "containerd-workon"
 CONTAINERD_IMAGE_TAG = (
@@ -175,3 +176,43 @@ def install(debug=False, clean=False):
         raise RuntimeError("containerd config file is empty!")
 
     print("Success!")
+
+
+def install_bbolt(debug=False, clean=False):
+    print_dotted_line("Installing bbolt")
+
+    tmp_ctr_name = "bbolt_install"
+    result = run(
+        f"docker run -d -it --name {tmp_ctr_name} golang:{GO_VERSION} bash",
+        shell=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0
+
+    def rm_container():
+        result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
+        assert result.returncode == 0
+
+    result = run(
+        f"docker exec {tmp_ctr_name} go install go.etcd.io/bbolt/cmd/bbolt@latest",
+        shell=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        print(result.stderr.decode("utf-8").strip()),
+        rm_container()
+        raise RuntimeError("Error execing into container")
+    if debug:
+        print(result.stdout.decode("utf-8").strip())
+
+    result = run(
+        f"docker cp {tmp_ctr_name}:/go/bin/bbolt {BIN_DIR}/bbolt",
+        shell=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        print(result.stderr.decode("utf-8").strip()),
+        rm_container()
+        raise RuntimeError("Error cp-ing from container")
+    if debug:
+        print(result.stdout.decode("utf-8").strip())

@@ -1,4 +1,5 @@
 # Installed binaries
+bbolt
 cosign
 crictl
 kubeadm

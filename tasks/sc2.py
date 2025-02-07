@@ -4,6 +4,7 @@ from os.path import exists, join
 from subprocess import run
 from tasks.containerd import (
     install as containerd_install,
+    install_bbolt as bbolt_install,
     set_log_level as containerd_set_log_level,
 )
 from tasks.demo_apps import (
@@ -259,6 +260,7 @@ def deploy(ctx, debug=False, clean=False):
 
     # Build and install containerd
     containerd_install(debug=debug, clean=clean)
+    bbolt_install(debug=debug, clean=clean)
 
     # Install k8s tooling (including k9s)
     k8s_tooling_install(debug=debug, clean=clean)

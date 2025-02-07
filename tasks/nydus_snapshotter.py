@@ -1,9 +1,11 @@
 from invoke import task
 from json import JSONDecodeError, loads as json_loads
+from os import getgid, getuid
 from os.path import exists, join
 from subprocess import run
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
 from tasks.util.env import (
+    BIN_DIR,
     COCO_ROOT,
     CONTAINERD_CONFIG_FILE,
     CONTAINERD_CONFIG_ROOT,
@@ -17,6 +19,7 @@ from tasks.util.env import (
 )
 from tasks.util.toml import read_value_from_toml, update_toml
 from tasks.util.versions import NYDUS_SNAPSHOTTER_VERSION
+from time import sleep
 
 NYDUS_SNAPSHOTTER_GUEST_PULL_NAME = "nydus"
 NYDUS_SNAPSHOTTER_HOST_SHARE_NAME = "nydus-hs"
@@ -51,6 +54,63 @@ NYDUS_SNAPSHOTTER_HOST_BINPATH = "/opt/confidential-containers/bin"
 
 def restart_nydus_snapshotter():
     run("sudo service nydus-snapshotter restart", shell=True, check=True)
+
+
+def wait_for_snapshot_metadata_to_be_gced(snapshotter, debug=False):
+    """
+    After restarting containerd it may take a while for the GC to kick in and
+    delete the metadata corresponding to previous snapshots. This metadata
+    is stored in a Bolt DB in /var/lib/containerd/io.containerd.metadata.v1.bolt/meta.db
+
+    Annoyingly, it is hard to manually delete files from the database w/out
+    writting a small Go script. Instead, we rely on the bbolt CLI tool to
+    poll the DB until the GC has done its job.
+    """
+    bbolt_path = join(BIN_DIR, "bbolt")
+    db_path = "/var/lib/containerd/io.containerd.metadata.v1.bolt/meta.db"
+    tmp_db_path = "/tmp/containerd_meta_copy.db"
+    bbolt_cmd = f"{bbolt_path} keys {tmp_db_path} v1 k8s.io snapshots {snapshotter}"
+
+    while True:
+        # Make a user-owned copy of the DB (bbolt complains otherwise)
+        run(f"sudo cp {db_path} {tmp_db_path}", shell=True, check=True)
+        run(
+            "sudo chown {}:{} {}".format(getuid(), getgid(), tmp_db_path),
+            shell=True,
+            check=True,
+        )
+
+        result = run(bbolt_cmd, shell=True, capture_output=True)
+        stdout = result.stdout.decode("utf-8").strip()
+
+        if result.returncode == 1:
+            # This can be a benign error if the snapshotter has not been used
+            # at all, never
+            if stdout == "bucket not found":
+                if debug:
+                    print("WARNING: bucket {snapsotter} not found in metadata")
+                    run(f"rm {tmp_db_path}", shell=True, check=True)
+                    return
+        elif result.returncode == 0:
+            if len(stdout) == 0:
+                run(f"rm {tmp_db_path}", shell=True, check=True)
+                return
+
+            print(
+                "Got {} snapshot's metadata for snapshotter: {}".format(
+                    len(stdout.split("\n")), snapshotter
+                )
+            )
+            sleep(2)
+        else:
+            print(
+                "ERROR: running bbolt command: stdout: {}, stderr: {}".format(
+                    stdout, result.stderr.decode("utf-8").strip()
+                )
+            )
+            run(f"rm {tmp_db_path}", shell=True, check=True)
+
+            raise RuntimeError("Error running bbolt command!")
 
 
 def do_purge(debug=False):
@@ -121,6 +181,11 @@ def do_purge(debug=False):
             continue
 
     restart_nydus_snapshotter()
+
+    # After restarting we need to wait for containerd's GC to clean-up the
+    # metadata database
+    for snap in [NYDUS_SNAPSHOTTER_HOST_SHARE_NAME, NYDUS_SNAPSHOTTER_GUEST_PULL_NAME]:
+        wait_for_snapshot_metadata_to_be_gced(snap, debug=debug)
 
 
 @task
