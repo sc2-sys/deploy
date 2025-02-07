@@ -182,6 +182,10 @@ def install_bbolt(debug=False, clean=False):
     print_dotted_line("Installing bbolt")
 
     tmp_ctr_name = "bbolt_install"
+    if is_ctr_running(tmp_ctr_name):
+        result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
+        assert result.returncode == 0
+
     result = run(
         f"docker run -d -it --name {tmp_ctr_name} golang:{GO_VERSION} bash",
         shell=True,
@@ -216,5 +220,7 @@ def install_bbolt(debug=False, clean=False):
         raise RuntimeError("Error cp-ing from container")
     if debug:
         print(result.stdout.decode("utf-8").strip())
+
+    rm_container()
 
     print("Success!")
