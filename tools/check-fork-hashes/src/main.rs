@@ -114,7 +114,10 @@ fn main() {
             let mut dict = HashMap::new();
             dict.insert("repo_name", "nydus-snapshotter");
             dict.insert("version_str", "NYDUS_SNAPSHOTTER_VERSION");
-            dict.insert("ctr_src_paths", "/go/src/github.com/sc2-sys/nydus-snapshotter");
+            dict.insert(
+                "ctr_src_paths",
+                "/go/src/github.com/sc2-sys/nydus-snapshotter",
+            );
             dict.insert("branches", "sc2-main");
             dict
         },
