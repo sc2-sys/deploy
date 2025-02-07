@@ -216,3 +216,5 @@ def install_bbolt(debug=False, clean=False):
         raise RuntimeError("Error cp-ing from container")
     if debug:
         print(result.stdout.decode("utf-8").strip())
+
+    print("Success!")
