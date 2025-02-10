@@ -2,7 +2,11 @@ from invoke import task
 from os import stat
 from os.path import join
 from subprocess import run
-from tasks.util.containerd import is_containerd_active, restart_containerd
+from tasks.util.containerd import (
+    is_containerd_active,
+    restart_containerd,
+    wait_for_containerd_socket,
+)
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
 from tasks.util.env import (
     BIN_DIR,
@@ -16,6 +20,7 @@ from tasks.util.env import (
 )
 from tasks.util.toml import update_toml
 from tasks.util.versions import CONTAINERD_VERSION, GO_VERSION
+from time import sleep
 
 CONTAINERD_CTR_NAME = "containerd-workon"
 CONTAINERD_IMAGE_TAG = (
@@ -164,7 +169,9 @@ def install(debug=False, clean=False):
     # Populate the default config file for a clean start
     run(f"sudo mkdir -p {CONTAINERD_CONFIG_ROOT}", shell=True, check=True)
     if clean:
-        config_cmd = "containerd config default > {}".format(CONTAINERD_CONFIG_FILE)
+        config_cmd = "{}/containerd config default > {}".format(
+            host_base_path, CONTAINERD_CONFIG_FILE
+        )
         config_cmd = "sudo bash -c '{}'".format(config_cmd)
         run(config_cmd, shell=True, check=True)
 
@@ -175,14 +182,31 @@ def install(debug=False, clean=False):
     if stat(CONTAINERD_CONFIG_FILE).st_size == 0:
         raise RuntimeError("containerd config file is empty!")
 
+    # Wait for containerd to be ready
+    sleep(2)
+    while not is_containerd_active():
+        if debug:
+            print("Waiting for containerd to be active...")
+
+        sleep(2)
+
+    # Then make sure we can dial the socket
+    wait_for_containerd_socket()
+
     print("Success!")
 
 
 def install_bbolt(debug=False, clean=False):
     print_dotted_line("Installing bbolt")
 
+    wait_for_containerd_socket()
+
     tmp_ctr_name = "bbolt_install"
     if is_ctr_running(tmp_ctr_name):
+        result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
+        assert result.returncode == 0
+
+    def rm_container():
         result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
         assert result.returncode == 0
 
@@ -191,11 +215,10 @@ def install_bbolt(debug=False, clean=False):
         shell=True,
         capture_output=True,
     )
-    assert result.returncode == 0
-
-    def rm_container():
-        result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
-        assert result.returncode == 0
+    if result.returncode != 0:
+        print(result.stderr.decode("utf-8").strip()),
+        rm_container()
+        raise RuntimeError("Error running container")
 
     result = run(
         f"docker exec {tmp_ctr_name} go install go.etcd.io/bbolt/cmd/bbolt@latest",
