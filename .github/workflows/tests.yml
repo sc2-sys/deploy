@@ -172,6 +172,8 @@ jobs:
           echo "Knative test succesful!"
 
       - name: "Run nydus host-share test"
+        # Host-share mechanisms seem not to work with TDX
+        if: ${{ matrix.tee != 'tdx' }}
         run: |
           # Change the snapshotter mode and purge (necessary to clear
           # containred's content store)
