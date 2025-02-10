@@ -88,7 +88,7 @@ def wait_for_snapshot_metadata_to_be_gced(snapshotter, debug=False):
             # at all, never
             if stdout == "bucket not found":
                 if debug:
-                    print("WARNING: bucket {snapsotter} not found in metadata")
+                    print(f"WARNING: bucket {snapshotter} not found in metadata")
                     run(f"rm {tmp_db_path}", shell=True, check=True)
                     return
         elif result.returncode == 0:
