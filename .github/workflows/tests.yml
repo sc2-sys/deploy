@@ -67,7 +67,7 @@ jobs:
           docker pull ghcr.io/sc2-sys/nydus-snapshotter:$(grep -oP 'NYDUS_SNAPSHOTTER_VERSION\s*=\s*"\K[^"]+' ./tasks/util/versions.py)
 
       - name: "Install SC2"
-        run: ./bin/inv_wrapper.sh sc2.deploy --clean --debug
+        run: ./bin/inv_wrapper.sh sc2.deploy --clean
 
       - name: "Run python hello world (cold and warm starts)"
         run: |
