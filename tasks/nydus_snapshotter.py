@@ -90,7 +90,16 @@ def wait_for_snapshot_metadata_to_be_gced(snapshotter, debug=False):
                 if debug:
                     print(f"WARNING: bucket {snapshotter} not found in metadata")
                     run(f"rm {tmp_db_path}", shell=True, check=True)
-                    return
+                return
+            else:
+                print(
+                    "ERROR: running bbolt command: stdout: {}, stderr: {}".format(
+                        stdout, result.stderr.decode("utf-8").strip()
+                    )
+                )
+                run(f"rm {tmp_db_path}", shell=True, check=True)
+
+                raise RuntimeError("Error running bbolt command!")
         elif result.returncode == 0:
             if len(stdout) == 0:
                 run(f"rm {tmp_db_path}", shell=True, check=True)
