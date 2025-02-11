@@ -6,6 +6,7 @@ THIS_DIR=$(dirname $(readlink -f $0))
 PROJ_ROOT=${THIS_DIR}/..
 VENV_PATH="${PROJ_ROOT}/venv"
 
+PYTHON=python3.10
 PIP=${VENV_PATH}/bin/pip3
 
 function pip_cmd {
@@ -15,7 +16,7 @@ function pip_cmd {
 pushd ${PROJ_ROOT} >> /dev/null
 
 if [ ! -d ${VENV_PATH} ]; then
-    python3 -m venv ${VENV_PATH}
+    ${PYTHON} -m venv ${VENV_PATH}
 fi
 
 pip_cmd install -U pip setuptools wheel
