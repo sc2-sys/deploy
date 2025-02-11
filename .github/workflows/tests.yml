@@ -226,9 +226,10 @@ jobs:
           echo "Knative test succesful!"
 
           # Change the snapshotter mode back again (and purge)
-          ./bin/inv_wrapper.sh nydus-snapshotter.set-mode guest-pull
-          sleep 2
-          ./bin/inv_wrapper.sh nydus-snapshotter.purge
+          #
+          # ./bin/inv_wrapper.sh nydus-snapshotter.set-mode guest-pull
+          # sleep 2
+          # ./bin/inv_wrapper.sh nydus-snapshotter.purge
 
       - name: "Enable default-memory annotation"
         run: |
@@ -245,6 +246,7 @@ jobs:
 
       - name: "Run knative chaining demo"
         run: |
+          # TODO: may have to fetch content if we want to run in guest pull
           for runtime_class in ${{ matrix.runtime_classes }}; do
             echo "Running test for ${runtime_class}..."
             export SC2_RUNTIME_CLASS=${runtime_class}
