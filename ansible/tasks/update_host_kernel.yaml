@@ -8,24 +8,20 @@
 
 # Step 2: Install the .deb kernel package
 - name: "Install the new kernel package"
+  become: true
   apt:
     deb: "/tmp/linux-image.deb"
     state: present
 
 # Step 3: Update the grub configuration to use the new kernel
 - name: "Update GRUB to use the new kernel"
+  become: true
   command: update-grub
 
 # Step 4: Reboot the system to load the new kernel
 - name: "Reboot the system to apply the new kernel"
+  become: true
   reboot:
     reboot_timeout: 600
     test_command: uname -r
   register: reboot_result
-
-# Step 5: Verify the kernel version after reboot
-# TODO: delete me
-- name: Check the new kernel version after reboot
-  debug:
-    msg: "Using host kernel: {{ reboot_result.stdout }}"
-  when: reboot_result is succeeded

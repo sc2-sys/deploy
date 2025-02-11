@@ -5,7 +5,7 @@
     path: "/home/{{ ansible_user }}/git"
     state: directory
 
-- name: "Clone repos"
+- name: "Clone SC2 repos"
   git:
     repo: "https://www.github.com/sc2-sys/{{ item }}.git"
     dest: "/home/{{ ansible_user }}/git/sc2-sys/{{ item }}"
@@ -20,3 +20,15 @@
     - "deploy"
     - "experiments"
 
+- name: "Clone virtee repos"
+  git:
+    repo: "https://www.github.com/virtee/{{ item }}.git"
+    dest: "/home/{{ ansible_user }}/git/virtee/{{ item }}"
+    depth: 1
+    update: yes
+    recursive: no
+    clone: yes
+    force: yes
+    accept_hostkey: yes
+  with_items:
+    - "snphost"
