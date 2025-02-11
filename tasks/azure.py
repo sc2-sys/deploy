@@ -17,7 +17,6 @@ AZURE_SNP_VM_IMAGE = (
     "/CommunityGalleries/cocopreview-91c44057-c3ab-4652-bf00-9242d5a90170/"
     "Images/ubu2204-snp-host-upm/Versions/latest"
 )
-# AZURE_SNP_VM_IMAGE = "/CommunityGalleries/cocopreview-91c44057-c3ab-4652-bf00-9242d5a90170/Images/ubu2204-snp-host-upm/Versions/latest"
 AZURE_SNP_VM_LOCATION = "eastus"
 AZURE_SNP_VM_OS_DISK_SIZE = 64
 AZURE_SNP_VM_SSH_PRIV_KEY = "~/.ssh/id_rsa"
@@ -98,11 +97,7 @@ def delete_resources(resources):
         to_delete = [r for r in resources if r["type"] == t]
 
         if to_delete:
-            print(
-                "Prioritising {} resources of type {}".format(
-                    len(to_delete), t
-                )
-            )
+            print("Prioritising {} resources of type {}".format(len(to_delete), t))
 
         for r in to_delete:
             delete_resource(r["name"], r["type"])
@@ -122,6 +117,7 @@ def list_all(azure_cmd, prefix=None):
         res = [v for v in res if v["name"].startswith(prefix)]
 
     return res
+
 
 # -----------------------------------------------------------------------------
 # Ansible functions
@@ -153,7 +149,11 @@ def ansible_prepare_inventory(prefix):
     lines = ["[all]"]
     for v in all_vms:
         # Include VM name for debugging purposes
-        lines.append("{} ansible_host={} ansible_user={}".format(v["name"], v["public_ip"], AZURE_SNP_VM_ADMIN))
+        lines.append(
+            "{} ansible_host={} ansible_user={}".format(
+                v["name"], v["public_ip"], AZURE_SNP_VM_ADMIN
+            )
+        )
 
     file_content = "\n".join(lines)
 
@@ -163,6 +163,7 @@ def ansible_prepare_inventory(prefix):
     with open(ANSIBLE_INVENTORY_FILE, "w") as fh:
         fh.write(file_content)
         fh.write("\n")
+
 
 # -----------------------------------------------------------------------------
 # Entrypoint tasks
@@ -186,11 +187,15 @@ def deploy(ctx):
 
 
 @task
-def setup(ctx, vm_name = "sc2-snp-test"):
+def setup(ctx, vm_name="sc2-snp-test"):
     ansible_prepare_inventory(vm_name)
 
     vm_playbook = join(ANSIBLE_ROOT, "vm.yaml")
-    run(f"ansible-playbook -i {ANSIBLE_INVENTORY_FILE} {vm_playbook}", shell=True, check=True)
+    run(
+        f"ansible-playbook -i {ANSIBLE_INVENTORY_FILE} {vm_playbook}",
+        shell=True,
+        check=True,
+    )
 
 
 @task

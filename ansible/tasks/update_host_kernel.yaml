@@ -6,19 +6,33 @@
     dest: "/tmp/linux-image.deb"
     mode: '0644'
 
-# Step 2: Install the .deb kernel package
 - name: "Install the new kernel package"
   become: true
   apt:
     deb: "/tmp/linux-image.deb"
     state: present
 
-# Step 3: Update the grub configuration to use the new kernel
-- name: "Update GRUB to use the new kernel"
+- name: "Update GRUB to pick up the newly installed kernel"
   become: true
   command: update-grub
 
-# Step 4: Reboot the system to load the new kernel
+- name: "List all installed kernels"
+  shell: dpkg --list | grep linux-image
+  register: installed_kernels
+
+# You can see the different options by running `dpkg --list | grep linux-image`
+- name: "Set the default kernel in GRUB"
+  become: true
+  lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_DEFAULT='
+    line: 'GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux 6.8.0-rc5-next-20240221-snp-host-2cfe07293708"'
+
+- name: "Update GRUB configuration again to pick up new changes"
+  become: true
+  command: update-grub
+  when: installed_kernels is changed
+
 - name: "Reboot the system to apply the new kernel"
   become: true
   reboot:
