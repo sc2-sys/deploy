@@ -210,7 +210,7 @@ jobs:
           echo "Python test succesful!"
 
           # ----- Knative Test ----
-          envsubst < ./demo-apps/helloworld-knative-nydus/service.yaml | ./bin/kubectl apply -f -
+          envsubst < ./demo-apps/helloworld-knative/service.yaml | ./bin/kubectl apply -f -
           sleep 1
 
           # Get the service URL
@@ -218,7 +218,7 @@ jobs:
           [ "$(curl --retry 3 ${service_url})" = "Hello World!" ]
 
           # Wait for pod to be deleted
-          envsubst < ./demo-apps/helloworld-knative-nydus/service.yaml | ./bin/kubectl delete -f -
+          envsubst < ./demo-apps/helloworld-knative/service.yaml | ./bin/kubectl delete -f -
           ./bin/kubectl wait --for=delete -l ${POD_LABEL} pod --timeout=60s
 
           # Extra cautionary sleep
