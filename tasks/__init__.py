@@ -1,5 +1,6 @@
 from invoke import Collection
 
+from . import azure
 from . import base
 from . import coco
 from . import containerd
@@ -27,6 +28,7 @@ from . import skopeo
 from tasks.coconut import ns as coconut_ns
 
 ns = Collection(
+    azure,
     base,
     coco,
     containerd,
