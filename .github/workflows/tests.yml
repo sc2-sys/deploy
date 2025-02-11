@@ -245,7 +245,9 @@ jobs:
           sudo -E ./vm-cache/target/release/vm-cache restart
 
       - name: "Fetch content (see #130)"
-        run: sudo ctr -n k8s.io content fetch -k sc2cr.io/system/knative-sidecar@sha256:79d5f6031f308cee209c4c32eeab9113b29a1ed4096c5d657504096734ca3b1d
+        run: |
+          sudo ctr -n k8s.io content fetch -k sc2cr.io/system/knative-sidecar@sha256:79d5f6031f308cee209c4c32eeab9113b29a1ed4096c5d657504096734ca3b1d
+          sudo ctr -n k8s.io content fetch registry.k8s.io/pause:3.8
 
       - name: "Run knative chaining demo"
         run: |
