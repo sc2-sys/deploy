@@ -1,0 +1,31 @@
+---
+
+- name: "Download the kernel with Azure's patches"
+  get_url:
+    url: "https://github.com/jepio/AMDSEV/releases/download/v2024.02.24/linux-image-6.8.0-rc5-next-20240221-snp-host-2cfe07293708_6.8.0-rc5-g2cfe07293708-2_amd64.deb"
+    dest: "/tmp/linux-image.deb"
+    mode: '0644'
+
+# Step 2: Install the .deb kernel package
+- name: "Install the new kernel package"
+  apt:
+    deb: "/tmp/linux-image.deb"
+    state: present
+
+# Step 3: Update the grub configuration to use the new kernel
+- name: "Update GRUB to use the new kernel"
+  command: update-grub
+
+# Step 4: Reboot the system to load the new kernel
+- name: "Reboot the system to apply the new kernel"
+  reboot:
+    reboot_timeout: 600
+    test_command: uname -r
+  register: reboot_result
+
+# Step 5: Verify the kernel version after reboot
+# TODO: delete me
+- name: Check the new kernel version after reboot
+  debug:
+    msg: "Using host kernel: {{ reboot_result.stdout }}"
+  when: reboot_result is succeeded

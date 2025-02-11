@@ -1,0 +1,17 @@
+---
+
+- name: "Install Rust using rustup"
+  shell: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  args:
+    creates: ~/.cargo/bin/rustc
+
+- name: "Add Cargo bin directory to PATH"
+  lineinfile:
+    path: ~/.bashrc
+    line: 'export PATH="$HOME/.cargo/bin:$PATH"'
+    create: yes
+
+- name: "Reload shell profile"
+  shell: source ~/.bashrc
+  args:
+    executable: /bin/bash
