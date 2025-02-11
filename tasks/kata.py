@@ -67,20 +67,10 @@ def stop(ctx):
     stop_kata_workon_ctr()
 
 
-@task
-def set_log_level(ctx, log_level):
+def set_log_level(log_level):
     """
     Set kata's log level, must be one in: info, debug
     """
-    allowed_log_levels = ["info", "debug"]
-    if log_level not in allowed_log_levels:
-        print(
-            "Unsupported log level '{}'. Must be one in: {}".format(
-                log_level, allowed_log_levels
-            )
-        )
-        return
-
     enable_debug = str(log_level == "debug").lower()
 
     for runtime in KATA_RUNTIMES + SC2_RUNTIMES:
@@ -146,6 +136,7 @@ def hot_replace_shim(ctx, runtime="qemu-snp-sc2"):
             ),
         ),
         sc2=runtime in SC2_RUNTIMES,
+        hot_replace=True,
     )
 
     restart_containerd()

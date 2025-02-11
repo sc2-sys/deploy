@@ -171,6 +171,66 @@ jobs:
           sleep 5
           echo "Knative test succesful!"
 
+      - name: "Run nydus host-share test"
+        # Host-share mechanisms seem not to work with TDX
+        if: ${{ matrix.tee != 'tdx' }}
+        run: |
+          # Change the snapshotter mode and purge (necessary to clear
+          # containred's content store)
+          ./bin/inv_wrapper.sh nydus-snapshotter.set-mode host-share
+          sleep 2
+          ./bin/inv_wrapper.sh nydus-snapshotter.purge
+
+          export SC2_RUNTIME_CLASS=qemu-${{ matrix.tee }}-sc2
+          export POD_LABEL="apps.sc2.io/name=helloworld-py"
+
+          # When updating the runtime we update all the config files, so we
+          # need to re-start the cache
+          sudo -E ./vm-cache/target/release/vm-cache restart
+
+          # ----- Python Test ----
+
+          echo "Running python test..."
+          envsubst < ./demo-apps/helloworld-py/deployment.yaml | ./bin/kubectl apply -f -
+
+          # Wait for pod to be ready
+          until [ "$(./bin/kubectl get pods -l ${POD_LABEL} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}')" = "True" ]; do echo "Waiting for pod to be ready..."; sleep 2; done
+          sleep 1
+
+          # Get the pod's IP
+          service_ip=$(./bin/kubectl get services -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}')
+          [ "$(curl --retry 3 -X GET ${service_ip}:8080)" = "Hello World!" ]
+          envsubst < ./demo-apps/helloworld-py/deployment.yaml | ./bin/kubectl delete -f -
+
+          # Wait for pod to be deleted
+          ./bin/kubectl wait --for=delete -l ${POD_LABEL} pod --timeout=30s
+
+          # Extra cautionary sleep
+          sleep 5
+          echo "Python test succesful!"
+
+          # ----- Knative Test ----
+          envsubst < ./demo-apps/helloworld-knative/service.yaml | ./bin/kubectl apply -f -
+          sleep 1
+
+          # Get the service URL
+          service_url=$(./bin/kubectl get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
+          [ "$(curl --retry 3 ${service_url})" = "Hello World!" ]
+
+          # Wait for pod to be deleted
+          envsubst < ./demo-apps/helloworld-knative/service.yaml | ./bin/kubectl delete -f -
+          ./bin/kubectl wait --for=delete -l ${POD_LABEL} pod --timeout=60s
+
+          # Extra cautionary sleep
+          sleep 5
+          echo "Knative test succesful!"
+
+          # Change the snapshotter mode back again (and purge)
+          #
+          ./bin/inv_wrapper.sh nydus-snapshotter.set-mode guest-pull
+          sleep 2
+          ./bin/inv_wrapper.sh nydus-snapshotter.purge
+
       - name: "Enable default-memory annotation"
         run: |
           for runtime_class in ${{ matrix.runtime_classes }}; do
@@ -182,8 +242,12 @@ jobs:
 
           # Aftre changing the annotation of the qemu-snp-sc2 runtime class we
           # need to restart the VM cache
-          sudo -E ./vm-cache/target/release/vm-cache stop
-          sudo -E ./vm-cache/target/release/vm-cache background
+          sudo -E ./vm-cache/target/release/vm-cache restart
+
+      - name: "Fetch content (see #130)"
+        run: |
+          sudo ctr -n k8s.io content fetch -k sc2cr.io/system/knative-sidecar@sha256:79d5f6031f308cee209c4c32eeab9113b29a1ed4096c5d657504096734ca3b1d
+          sudo ctr -n k8s.io content fetch registry.k8s.io/pause:3.8
 
       - name: "Run knative chaining demo"
         run: |

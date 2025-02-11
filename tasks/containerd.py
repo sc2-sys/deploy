@@ -2,9 +2,14 @@ from invoke import task
 from os import stat
 from os.path import join
 from subprocess import run
-from tasks.util.containerd import is_containerd_active, restart_containerd
+from tasks.util.containerd import (
+    is_containerd_active,
+    restart_containerd,
+    wait_for_containerd_socket,
+)
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
 from tasks.util.env import (
+    BIN_DIR,
     CONF_FILES_DIR,
     CONTAINERD_CONFIG_FILE,
     CONTAINERD_CONFIG_ROOT,
@@ -14,7 +19,8 @@ from tasks.util.env import (
     print_dotted_line,
 )
 from tasks.util.toml import update_toml
-from tasks.util.versions import CONTAINERD_VERSION
+from tasks.util.versions import CONTAINERD_VERSION, GO_VERSION
+from time import sleep
 
 CONTAINERD_CTR_NAME = "containerd-workon"
 CONTAINERD_IMAGE_TAG = (
@@ -31,23 +37,24 @@ CONTAINERD_CTR_BINPATH = "/go/src/github.com/sc2-sys/containerd/bin"
 CONTAINERD_HOST_BINPATH = "/usr/bin"
 
 
-def do_build(debug=False):
-    docker_cmd = "docker build -t {} -f {} .".format(
+def do_build(nocache=False):
+    docker_cmd = "docker build{} -t {} -f {} .".format(
+        " --no-cache" if nocache else "",
         CONTAINERD_IMAGE_TAG,
         join(PROJ_ROOT, "docker", "containerd.dockerfile"),
     )
-    result = run(docker_cmd, shell=True, capture_output=True, cwd=PROJ_ROOT)
-    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
-    if debug:
-        print(result.stdout.decode("utf-8").strip())
+    run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
 
 
 @task
-def build(ctx):
+def build(ctx, nocache=False, push=False):
     """
     Build the containerd fork for CoCo
     """
-    do_build(debug=True)
+    do_build(nocache=nocache)
+
+    if push:
+        run(f"docker push {CONTAINERD_IMAGE_TAG}", shell=True, check=True)
 
 
 @task
@@ -73,19 +80,23 @@ def cli(ctx, mount_path=join(PROJ_ROOT, "..", "containerd")):
 
 
 @task
-def set_log_level(ctx, log_level):
+def stop(ctx):
+    """
+    Stop the containerd work-on container
+    """
+    result = run(
+        "docker rm -f {}".format(CONTAINERD_CTR_NAME),
+        shell=True,
+        check=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0
+
+
+def set_log_level(log_level):
     """
     Set containerd's log level, must be one in: info, debug
     """
-    allowed_log_levels = ["info", "debug"]
-    if log_level not in allowed_log_levels:
-        print(
-            "Unsupported log level '{}'. Must be one in: {}".format(
-                log_level, allowed_log_levels
-            )
-        )
-        return
-
     updated_toml_str = """
     [debug]
     level = "{log_level}"
@@ -158,7 +169,9 @@ def install(debug=False, clean=False):
     # Populate the default config file for a clean start
     run(f"sudo mkdir -p {CONTAINERD_CONFIG_ROOT}", shell=True, check=True)
     if clean:
-        config_cmd = "containerd config default > {}".format(CONTAINERD_CONFIG_FILE)
+        config_cmd = "{}/containerd config default > {}".format(
+            host_base_path, CONTAINERD_CONFIG_FILE
+        )
         config_cmd = "sudo bash -c '{}'".format(config_cmd)
         run(config_cmd, shell=True, check=True)
 
@@ -168,5 +181,69 @@ def install(debug=False, clean=False):
     # Sanity check
     if stat(CONTAINERD_CONFIG_FILE).st_size == 0:
         raise RuntimeError("containerd config file is empty!")
+
+    # Wait for containerd to be ready
+    sleep(2)
+    while not is_containerd_active():
+        if debug:
+            print("Waiting for containerd to be active...")
+
+        sleep(2)
+
+    # Then make sure we can dial the socket
+    wait_for_containerd_socket()
+
+    print("Success!")
+
+
+def install_bbolt(debug=False, clean=False):
+    print_dotted_line("Installing bbolt")
+
+    wait_for_containerd_socket()
+
+    tmp_ctr_name = "bbolt_install"
+    if is_ctr_running(tmp_ctr_name):
+        result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
+        assert result.returncode == 0
+
+    def rm_container():
+        result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
+        assert result.returncode == 0
+
+    result = run(
+        f"docker run -d -it --name {tmp_ctr_name} golang:{GO_VERSION} bash",
+        shell=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        print(result.stderr.decode("utf-8").strip()),
+        rm_container()
+        raise RuntimeError("Error running container")
+
+    result = run(
+        f"docker exec {tmp_ctr_name} go install go.etcd.io/bbolt/cmd/bbolt@latest",
+        shell=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        print(result.stderr.decode("utf-8").strip()),
+        rm_container()
+        raise RuntimeError("Error execing into container")
+    if debug:
+        print(result.stdout.decode("utf-8").strip())
+
+    result = run(
+        f"docker cp {tmp_ctr_name}:/go/bin/bbolt {BIN_DIR}/bbolt",
+        shell=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        print(result.stderr.decode("utf-8").strip()),
+        rm_container()
+        raise RuntimeError("Error cp-ing from container")
+    if debug:
+        print(result.stdout.decode("utf-8").strip())
+
+    rm_container()
 
     print("Success!")
