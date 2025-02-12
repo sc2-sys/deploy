@@ -3,6 +3,7 @@ from json import JSONDecodeError, loads as json_loads
 from os import getgid, getuid
 from os.path import exists, join
 from subprocess import run
+from tasks.util.containerd import wait_for_containerd_socket
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
 from tasks.util.env import (
     BIN_DIR,
@@ -140,13 +141,16 @@ def do_purge(debug=False):
 
     # Clear all possibly used images (only images in our registry, or the
     # pause container images)
+    tmp_out = "/tmp/cmd_output"
     cmd = (
         "sudo crictl --runtime-endpoint unix:///run/containerd/containerd.sock"
-        " images -o json"
+        f" images -o json > {tmp_out} 2> /tmp/jeje"
     )
     rm_cmd = "sudo crictl --runtime-endpoint unix:///run/containerd/containerd.sock rmi"
     try:
-        stdout = run(cmd, shell=True, capture_output=True).stdout.decode("utf-8")
+        run(cmd, shell=True, check=True)
+        with open(tmp_out, "r") as fh:
+            stdout = fh.read().strip()
         data = json_loads(stdout)
     except JSONDecodeError as e:
         stderr = run(cmd, shell=True, capture_output=True).stderr.decode("utf-8")
@@ -202,6 +206,7 @@ def purge(ctx):
     """
     Remove all cached snapshots in the snapshotter cache
     """
+    wait_for_containerd_socket()
     do_purge(debug=True)
 
 
