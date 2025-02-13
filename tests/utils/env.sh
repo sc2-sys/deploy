@@ -21,5 +21,9 @@ else
     exit 1
 fi
 
+# Useful constants
+INTERTEST_SLEEP_SECS=5
+
+# Images
 PAUSE_IMAGE="registry.k8s.io/pause:3.8"
 SIDECAR_IMAGE="sc2cr.io/system/knative-sidecar@sha256:79d5f6031f308cee209c4c32eeab9113b29a1ed4096c5d657504096734ca3b1d"
