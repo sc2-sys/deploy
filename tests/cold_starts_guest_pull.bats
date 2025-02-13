@@ -14,7 +14,7 @@ setup() {
 
 teardown() {
     # Cautionary inter-test sleep
-    sleep 5
+    sleep ${INTERTEST_SLEEP_SECS}
 }
 
 snapshotter="guest-pull"

@@ -18,7 +18,7 @@ setup_file() {
 
 teardown() {
     # Cautionary inter-test sleep
-    sleep 5
+    sleep ${INTERTEST_SLEEP_SECS}
 }
 
 TEST_NAME="Test knative chaining"
