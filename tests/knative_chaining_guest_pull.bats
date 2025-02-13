@@ -5,6 +5,15 @@ source ./tests/utils/helpers.sh
 
 setup_file() {
     set_snapshotter_mode "guest-pull"
+
+    # The chaining tests need more memory and we set it using the
+    # default_memory annotation
+    enable_kata_annotation "default_memory"
+    restart_vm_cache
+
+    # May have to fetch content here
+    k8s_content_fetch ${PAUSE_IMAGE}
+    k8s_content_fetch ${SIDECAR_IMAGE}
 }
 
 teardown() {
