@@ -70,14 +70,13 @@ spec:
           ports:
             - containerPort: 8080
           command: [ "cargo", "run", "--release" ]
-          resources:
-            limits:
-              memory: "6144Mi"
-            requests:
-              memory: "6144Mi"
     metadata:
       labels:
         apps.sc2.io/name: knative-chaining-one
+      annotations:
+        # NOTE: we may have to enable this annotation in Kata's config file
+        # under hypervisor.qemu.enable_annotations (add 'default_memory')
+        io.katacontainers.config.hypervisor.default_memory: "6144"
 ---
 # JobSink guarantees one Job per CloudEvent, satisfying our dynamic scale-up
 # requirements. However, JobSink's propagate CloudEvents through a volume
@@ -105,14 +104,13 @@ spec:
               env:
                 - name: CE_FROM_FILE
                   value: "on"
-              resources:
-                limits:
-                  memory: "6144Mi"
-                requests:
-                  memory: "6144Mi"
         metadata:
           labels:
             apps.sc2.io/name: knative-chaining-two
+          annotations:
+            # NOTE: we may have to enable this annotation in Kata's config file
+            # under hypervisor.qemu.enable_annotations (add 'default_memory')
+            io.katacontainers.config.hypervisor.default_memory: "6144"
 ---
 # For this last service, we want to give it a high-grace period to make sure
 # that the same instance processes all of the events
@@ -130,16 +128,14 @@ spec:
           ports:
             - containerPort: 8080
           command: [ "cargo", "run", "--release" ]
-          resources:
-            limits:
-              memory: "6144Mi"
-            requests:
-              memory: "6144Mi"
     metadata:
       labels:
         apps.sc2.io/name: knative-chaining-three
       annotations:
         autoscaling.knative.dev/scale-to-zero-pod-retention-period: "1m"
+        # NOTE: we may have to enable this annotation in Kata's config file
+        # under hypervisor.qemu.enable_annotations (add 'default_memory')
+        io.katacontainers.config.hypervisor.default_memory: "6144"
 ---
 apiVersion: messaging.knative.dev/v1
 kind: Subscription

@@ -39,13 +39,13 @@ TEE_DETECT_BINARY=${TEE_DETECT_ROOT}/target/release/tee-detect
 cargo build -q --release --manifest-path ${TEE_DETECT_ROOT}/Cargo.toml
 
 if "${TEE_DETECT_BINARY}" snp; then
-    TEE=snp
+    export SC2_TEE=snp
     export SC2_RUNTIME_CLASS=qemu-snp-sc2
 elif "${TEE_DETECT_BINARY}" tdx; then
-    TEE=tdx
+    export SC2_TEE=tdx
     export SC2_RUNTIME_CLASS=qemu-tdx-sc2
 else
-    TEE=none
+    export SC2_TEE=none
     echo "sc2-deploy: WARN: neither SNP nor TDX is enabled"
 fi
 
@@ -75,7 +75,7 @@ echo ""
 echo "----------------------------------"
 echo "CLI for SC2 Deployment Scripts"
 echo "CoCo Version: ${COCO_VERSION}"
-echo "TEE: ${TEE}"
+echo "TEE: ${SC2_TEE}"
 echo "----------------------------------"
 echo ""
 
