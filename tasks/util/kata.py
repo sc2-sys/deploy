@@ -246,7 +246,11 @@ def replace_agent(
 
     # ----- Populate rootfs with base ubuntu using Kata's scripts -----
 
-    out = run("sudo apt install -y makedev multistrap", shell=True, capture_output=True)
+    out = run(
+        "sudo DEBIAN_FRONTEND=noninteractive apt install -y makedev multistrap",
+        shell=True,
+        capture_output=True,
+    )
     assert out.returncode == 0, "Error preparing rootfs: {}".format(
         out.stderr.decode("utf-8")
     )

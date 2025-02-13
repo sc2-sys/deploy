@@ -128,7 +128,9 @@ def start(debug=False, clean=False):
             check=True,
         )
         result = run(
-            "sudo dpkg-reconfigure ca-certificates", shell=True, capture_output=True
+            "sudo DEBIAN_FRONTEND=noninteractive dpkg-reconfigure ca-certificates",
+            shell=True,
+            capture_output=True,
         )
         assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
         if debug:
