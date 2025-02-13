@@ -70,7 +70,9 @@ jobs:
         run: ./bin/inv_wrapper.sh sc2.deploy --clean
 
       - name: "Install BATS"
-        run: sudo apt install -y bats
+        run: sudo -E apt install -y bats
+        env:
+          DEBIAN_FRONTEND: noninteractive
 
       - name: "Run integration tests"
         run: bats ./tests
