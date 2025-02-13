@@ -144,7 +144,7 @@ def do_purge(debug=False):
     tmp_out = "/tmp/cmd_output"
     cmd = (
         "sudo crictl --runtime-endpoint unix:///run/containerd/containerd.sock"
-        f" images -o json > {tmp_out}"
+        f" images -o json > {tmp_out} 2> /dev/null"
     )
     rm_cmd = "sudo crictl --runtime-endpoint unix:///run/containerd/containerd.sock rmi"
     try:
