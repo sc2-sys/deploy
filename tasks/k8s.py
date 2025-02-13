@@ -102,7 +102,11 @@ def install_k8s(debug=False, clean=False):
         symlink_global_bin(binary_path, binary, debug=debug)
 
     # Also install some APT dependencies
-    result = run("sudo apt install -y conntrack socat", shell=True, capture_output=True)
+    result = run(
+        "sudo DEBIAN_FRONTEND=noninteractive apt install -y conntrack socat",
+        shell=True,
+        capture_output=True,
+    )
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
     if debug:
         print(result.stdout.decode("utf-8").strip())
