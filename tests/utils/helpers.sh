@@ -29,6 +29,10 @@ set_snapshotter_mode() {
     export SC2_SNAPSHOTTER=${snapshotter_mode}
 
     sleep 1
+
+    # Setting the snapshotter mode changes the config file, so we must restart
+    # the vm cache
+    restart_vm_cache
 }
 
 # ------------------------------------------------------------------------------
