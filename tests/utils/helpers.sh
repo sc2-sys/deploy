@@ -8,7 +8,8 @@ source ./tests/utils/env.sh
 
 enable_kata_annotation() {
     local annotation="$1"
-    ${INV} kata.enable-annotation ${annotation} --runtime "qemu-${SC2_TEE}-sc2"
+    local runtime="$2"
+    ${INV} kata.enable-annotation ${annotation} --runtime ${runtime}
 }
 
 k8s_content_fetch() {
