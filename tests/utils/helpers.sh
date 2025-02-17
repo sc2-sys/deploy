@@ -18,7 +18,7 @@ k8s_content_fetch() {
 }
 
 restart_vm_cache() {
-    sudo -E ${PROJ_ROOT}/vm-cache/target/release/vm-cache restart
+    sudo SC2_RUNTIME_CLASS="qemu-${SC2_TEE}-sc2" ${PROJ_ROOT}/vm-cache/target/release/vm-cache restart
 }
 
 set_snapshotter_mode() {
