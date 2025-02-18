@@ -18,7 +18,11 @@ k8s_content_fetch() {
 }
 
 restart_vm_cache() {
-    sudo SC2_RUNTIME_CLASS="qemu-${SC2_TEE}-sc2" ${PROJ_ROOT}/vm-cache/target/release/vm-cache restart
+    export SC2_RUNTIME_CLASS="qemu-${SC2_TEE}-sc2"
+
+    # Need to pass the environment because the vm-cache script not only uses
+    # the SC2_RUNTIME_CLASS env. var, but also others like $HOME or $USER
+    sudo -E ${PROJ_ROOT}/vm-cache/target/release/vm-cache restart
 }
 
 set_snapshotter_mode() {
