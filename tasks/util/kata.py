@@ -108,7 +108,7 @@ def build_pause_image(sc2, debug, hot_replace):
     makedirs(join(pause_image_build_dir, "static-build"))
     makedirs(join(pause_image_build_dir, "scripts"))
 
-    script_files = ["static-build/pause-image/", "scripts/lib.sh"]
+    script_files = ["static-build/pause-image", "scripts/lib.sh"]
     for ctr_path, host_path in zip(
         [
             join(
@@ -187,7 +187,7 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
     script_files = [
         "initrd-builder/initrd_builder.sh",
         "rootfs-builder/rootfs.sh",
-        "rootfs-builder/nvidia/",
+        "rootfs-builder/nvidia",
         "rootfs-builder/ubuntu/config.sh",
         "rootfs-builder/ubuntu/Dockerfile.in",
         "rootfs-builder/ubuntu/rootfs_lib.sh",
