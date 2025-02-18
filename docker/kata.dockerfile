@@ -6,10 +6,7 @@ FROM ghcr.io/sc2-sys/base:0.10.0
 
 # Install APT dependencies
 RUN apt install -y \
-        gcc \
-        gopls \
         libseccomp-dev \
-        make \
         musl-tools \
         wget
 

@@ -57,6 +57,7 @@ KATA_RUNTIMES = ["qemu-coco-dev", "qemu-snp", "qemu-tdx"]
 
 # ---------- SC2 config ----------
 
+SC2_ROOT = "/opt/sc2"
 SC2_CONFIG_DIR = join(expanduser("~"), ".config", "sc2")
 SC2_DEPLOYMENT_FILE = join(SC2_CONFIG_DIR, "DEPLOYED")
 SC2_RUNTIMES = ["qemu-snp-sc2", "qemu-tdx-sc2"]

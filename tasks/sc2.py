@@ -26,6 +26,7 @@ from tasks.operator import (
     install_cc_runtime as operator_install_cc_runtime,
 )
 from tasks.util.containerd import restart_containerd
+from tasks.util.docker import pull_artifact_images
 from tasks.util.env import (
     COCO_ROOT,
     CONF_FILES_DIR,
@@ -214,6 +215,8 @@ def deploy(ctx, debug=False, clean=False):
         print("ERROR: only remove deployment file if you know what you are doing!")
         raise RuntimeError("SC2 already deployed!")
 
+    # TODO: Fail-fast if we are not using the expected host kernel
+
     if clean:
         # Remove all directories that we populate and modify
         for nuked_dir in [
@@ -257,6 +260,9 @@ def deploy(ctx, debug=False, clean=False):
 
     # Disable swap
     run("sudo swapoff -a", shell=True, check=True)
+
+    # Pull all artifact container images necessary
+    pull_artifact_images(debug=debug)
 
     # Build and install containerd
     containerd_install(debug=debug, clean=clean)

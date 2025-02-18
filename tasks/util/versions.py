@@ -29,3 +29,6 @@ KNATIVE_VERSION = "1.15.0"
 
 # Kernel versions
 GUEST_KERNEL_VERSION = "6.12.8"
+
+# Coconut SVSM versions
+IGVM_VERSION = "0.3.4"
