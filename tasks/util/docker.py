@@ -1,7 +1,12 @@
 from os.path import dirname, exists
 from subprocess import run
 from tasks.util.env import GHCR_URL, GITHUB_ORG, PROJ_ROOT, print_dotted_line
-from tasks.util.versions import CONTAINERD_VERSION, KATA_VERSION, NYDUS_SNAPSHOTTER_VERSION, NYDUS_VERSION
+from tasks.util.versions import (
+    CONTAINERD_VERSION,
+    KATA_VERSION,
+    NYDUS_SNAPSHOTTER_VERSION,
+    NYDUS_VERSION,
+)
 
 
 def is_ctr_running(ctr_name):
@@ -86,7 +91,12 @@ def build_image_and_run(image_tag, dockerfile, ctr_name, build_args=None):
 def pull_artifact_images(debug=False):
     print_dotted_line("Pulling artifact container images")
     components = ["containerd", "kata-containers", "nydus", "nydus-snapshotter"]
-    versions = [CONTAINERD_VERSION, KATA_VERSION, NYDUS_VERSION, NYDUS_SNAPSHOTTER_VERSION]
+    versions = [
+        CONTAINERD_VERSION,
+        KATA_VERSION,
+        NYDUS_VERSION,
+        NYDUS_SNAPSHOTTER_VERSION,
+    ]
     for component, version in zip(components, versions):
         docker_cmd = f"docker pull {GHCR_URL}/{GITHUB_ORG}/{component}:{version}"
         result = run(docker_cmd, shell=True, capture_output=True)

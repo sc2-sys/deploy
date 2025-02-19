@@ -32,22 +32,39 @@ def build_guest_image(ctx, clean=False):
 
     # Get the kernel version we will install in the guest image
     tmp_file = "/tmp/sc2_kernel_release"
-    copy_from_ctr_image(SVSM_KERNEL_IMAGE_TAG, ["/git/coconut-svsm/linux/include/config/kernel.release"], [tmp_file])
+    copy_from_ctr_image(
+        SVSM_KERNEL_IMAGE_TAG,
+        ["/git/coconut-svsm/linux/include/config/kernel.release"],
+        [tmp_file],
+    )
     with open(tmp_file, "r") as fh:
         kernel_version = fh.read().strip()
-    kernel_version_trimmed = kernel_version if not kernel_version.endswith("+") else kernel_version[:-1]
+    kernel_version_trimmed = (
+        kernel_version if not kernel_version.endswith("+") else kernel_version[:-1]
+    )
 
     # Prepare our rootfs with the kata agent and co.
     rootfs_base_dir = "/tmp/svsm_rootfs_base_dir"
-    prepare_rootfs(rootfs_base_dir, debug=False, sc2=True, hot_replace=False)
+    # TODO: move hot_replace to False when done experimenting
+    prepare_rootfs(rootfs_base_dir, debug=False, sc2=True, hot_replace=True)
     rootfs_dir = join(rootfs_base_dir, "rootfs")
 
     # Install deps
-    result = run("sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-utils libguestfs-tools", shell=True, capture_output=True)
+    result = run(
+        "sudo DEBIAN_FRONTEND=noninteractive apt install -y "
+        "qemu-utils libguestfs-tools",
+        shell=True,
+        capture_output=True,
+    )
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
 
     # Create qcow image
-    result = run(f"sudo qemu-img create -f qcow2 -o preallocation=metadata {SVSM_GUEST_IMAGE} {SVSM_GUEST_IMAGE_SIZE}", shell=True, capture_output=True)
+    result = run(
+        f"sudo qemu-img create -f qcow2 -o preallocation=metadata {SVSM_GUEST_IMAGE} "
+        f"{SVSM_GUEST_IMAGE_SIZE}",
+        shell=True,
+        capture_output=True,
+    )
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
 
     # Format it as an ext4 fielsystem
@@ -59,7 +76,11 @@ def build_guest_image(ctx, clean=False):
     if exists(mount_dir):
         run(f"sudo rm -rf {mount_dir}", shell=True, check=True)
     run(f"sudo mkdir -p {mount_dir}", shell=True, check=True)
-    result = run(f"sudo guestmount -a {SVSM_GUEST_IMAGE} -m /dev/sda {mount_dir}", shell=True, capture_output=True)
+    result = run(
+        f"sudo guestmount -a {SVSM_GUEST_IMAGE} -m /dev/sda {mount_dir}",
+        shell=True,
+        capture_output=True,
+    )
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
 
     # Copy our rootfs into the qcow image
@@ -75,7 +96,9 @@ def build_guest_image(ctx, clean=False):
         f"{mount_dir}/boot/vmlinuz-{kernel_version_trimmed}",
         f"{mount_dir}/lib/modules/{kernel_version_trimmed}",
     ]
-    copy_from_ctr_image(SVSM_KERNEL_IMAGE_TAG, ctr_paths, host_paths, requires_sudo=True)
+    copy_from_ctr_image(
+        SVSM_KERNEL_IMAGE_TAG, ctr_paths, host_paths, requires_sudo=True
+    )
 
     # Configure GRUB inside the guest image
     subsystems = ["dev", "proc", "sys"]
@@ -85,26 +108,52 @@ def build_guest_image(ctx, clean=False):
             run(f"sudo umount {mount_dir}/{subsystem}", shell=True, check=True)
 
     for subsystem in subsystems:
-        run(f"sudo mount --bind /{subsystem} {mount_dir}/{subsystem}", shell=True, check=True)
+        run(
+            f"sudo mount --bind /{subsystem} {mount_dir}/{subsystem}",
+            shell=True,
+            check=True,
+        )
 
     # First, install manually install apt in the rootfs
+    # TODO: probably get rid if this mess
+    """
     for apt_dir in ["/usr/bin/apt", "/usr/lib/apt", "/var/lib/apt", "/var/lib/dpkg"]:
         if apt_dir == "/usr/bin/apt":
-            result = run(f"sudo cp -r {apt_dir}* {mount_dir}/usr/bin/", capture_output=True, shell=True)
+            result = run(
+                f"sudo cp -r {apt_dir}* {mount_dir}/usr/bin/",
+                capture_output=True,
+                shell=True,
+            )
         else:
-            result = run(f"sudo cp -r {apt_dir} {mount_dir}{apt_dir}", capture_output=True, shell=True)
+            result = run(
+                f"sudo cp -r {apt_dir} {mount_dir}{apt_dir}",
+                capture_output=True,
+                shell=True,
+            )
 
         if result.returncode != 0:
             print(result.stderr.decode("utf-8").strip())
             unmount_subsys()
             raise RuntimeError("Error installing APT")
 
-    for shared_lib in ["libapt-private.so.0.0", "libapt-pkg.so.6.0", "libstdc++.so.6", "libxxhash.so.0"]:
-        result = run(f"sudo cp /lib/x86_64-linux-gnu/{shared_lib} {mount_dir}/lib/x86_64-linux-gnu/{shared_lib}", capture_output=True, shell=True)
+    for shared_lib in [
+        "libapt-private.so.0.0",
+        "libapt-pkg.so.6.0",
+        "libstdc++.so.6",
+        "libxxhash.so.0",
+    ]:
+        result = run(
+            f"sudo cp /lib/x86_64-linux-gnu/{shared_lib} "
+            f"{mount_dir}/lib/x86_64-linux-gnu/{shared_lib}",
+            capture_output=True,
+            shell=True,
+        )
         if result.returncode != 0:
             print(result.stderr.decode("utf-8").strip())
             unmount_subsys()
             raise RuntimeError("Error installing APT shared libs")
+    # TODO: end of the mess to be deleted
+    """
 
     cmd = """
 sudo chroot {mount_dir} /usr/bin/bash <<EOF
@@ -113,7 +162,9 @@ apt install -y {packages}
 grub-install --target=i386-pc /dev/sda
 update-grub
 EOF
-""".format(mount_dir=mount_dir, packages="grub2 grub2-common grub-pc")
+""".format(
+        mount_dir=mount_dir, packages="grub2 grub2-common grub-pc"
+    )
     result = run(cmd, shell=True, capture_output=True)
     if result.returncode != 0:
         print(result.stderr.decode("utf-8").strip())
@@ -124,10 +175,13 @@ EOF
     cmd = """
 sudo chroot {mount_dir} /usr/bin/bash <<EOF
 mkinitramfs -o /boot/initrd.img-{kernel_version} $(ls /lib/modules)
-echo "GRUB_DEFAULT='Advanced options for Ubuntu>vmlinuz-{kernel_version}'" >> /etc/default/grub
+echo "GRUB_DEFAULT='Advanced options for Ubuntu>vmlinuz-{kernel_version}'" \
+        >> /etc/default/grub
 update-grub
 EOF
-""".format(mount_dir=mount_dir, kernel_version=kernel_version_trimmed)
+""".format(
+        mount_dir=mount_dir, kernel_version=kernel_version_trimmed
+    )
     result = run(cmd, shell=True, capture_output=True)
     if result.returncode != 0:
         print(result.stderr.decode("utf-8").strip())
@@ -179,7 +233,7 @@ def do_build_kernel(nocache=False):
 
     build_args = {
         "KERNEL_CONFIG_FILE": basename(tmp_file),
-        "MODULES_OUTDIR": join(SVSM_ROOT, "share", "linux", "modules")
+        "MODULES_OUTDIR": join(SVSM_ROOT, "share", "linux", "modules"),
     }
     build_args_str = [
         "--build-arg {}={}".format(key, build_args[key]) for key in build_args
@@ -239,7 +293,7 @@ def do_build_svsm(ctx, nocache=False):
         build_args_str,
         SVSM_IMAGE_TAG,
         join(PROJ_ROOT, "docker", "svsm.dockerfile"),
-        join(SVSM_ROOT, "share", "ovmf")
+        join(SVSM_ROOT, "share", "ovmf"),
     )
     run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
 
@@ -268,7 +322,7 @@ def install(debug, clean):
     ctr_paths = [
         join(SVSM_ROOT, "bin", "qemu-system-x86_64"),
         join(SVSM_ROOT, "share", "qemu", "qemu/"),
-        "/git/coconut-svsm/edk2/Build/OvmfX64/RELEASE_GCC5/FV/OVMF.fd"
+        "/git/coconut-svsm/edk2/Build/OvmfX64/RELEASE_GCC5/FV/OVMF.fd",
     ]
     host_paths = [
         join(SVSM_ROOT, "bin", "qemu-system-x86_64"),
