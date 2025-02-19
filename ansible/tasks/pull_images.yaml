@@ -1,0 +1,15 @@
+---
+
+- name: "Extract version numbers from versions.py"
+  shell: |
+    grep -oP '{{ item.regex }}' "/home/{{ ansible_user }}/git/sc2-sys/deploy/tasks/util/versions.py"
+  register: versions
+  loop:
+    - { name: "containerd", regex: 'CONTAINERD_VERSION\s*=\s*"\K[^"]+' }
+    - { name: "kata-containers", regex: 'KATA_VERSION\s*=\s*"\K[^"]+' }
+    - { name: "nydus", regex: 'NYDUS_VERSION\s*=\s*"\K[^"]+' }
+    - { name: "nydus-snapshotter", regex: 'NYDUS_SNAPSHOTTER_VERSION\s*=\s*"\K[^"]+' }
+
+- name: "Pull Docker images with extracted versions"
+  shell: "docker pull ghcr.io/sc2-sys/{{ item.item.name }}:{{ item.stdout }}"
+  loop: "{{ versions.results }}"
