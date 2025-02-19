@@ -12,11 +12,6 @@ enable_kata_annotation() {
     ${INV} kata.enable-annotation ${annotation} --runtime ${runtime}
 }
 
-k8s_content_fetch() {
-    local image=$1
-    sudo ctr -n k8s.io content fetch -k ${image}
-}
-
 restart_vm_cache() {
     export SC2_RUNTIME_CLASS="qemu-${SC2_TEE}-sc2"
 

@@ -5,10 +5,6 @@ source ./tests/utils/helpers.sh
 
 setup_file() {
     set_snapshotter_mode "guest-pull"
-
-    # May have to fetch content here
-    k8s_content_fetch ${PAUSE_IMAGE}
-    k8s_content_fetch ${SIDECAR_IMAGE}
 }
 
 teardown() {
