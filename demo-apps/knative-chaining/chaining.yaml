@@ -74,6 +74,7 @@ spec:
       labels:
         apps.sc2.io/name: knative-chaining-one
       annotations:
+        io.containerd.cri.runtime-handler: kata-${SC2_RUNTIME_CLASS}
         # NOTE: we may have to enable this annotation in Kata's config file
         # under hypervisor.qemu.enable_annotations (add 'default_memory')
         io.katacontainers.config.hypervisor.default_memory: "6144"
@@ -108,6 +109,7 @@ spec:
           labels:
             apps.sc2.io/name: knative-chaining-two
           annotations:
+            io.containerd.cri.runtime-handler: kata-${SC2_RUNTIME_CLASS}
             # NOTE: we may have to enable this annotation in Kata's config file
             # under hypervisor.qemu.enable_annotations (add 'default_memory')
             io.katacontainers.config.hypervisor.default_memory: "6144"
@@ -133,6 +135,7 @@ spec:
         apps.sc2.io/name: knative-chaining-three
       annotations:
         autoscaling.knative.dev/scale-to-zero-pod-retention-period: "1m"
+        io.containerd.cri.runtime-handler: kata-${SC2_RUNTIME_CLASS}
         # NOTE: we may have to enable this annotation in Kata's config file
         # under hypervisor.qemu.enable_annotations (add 'default_memory')
         io.katacontainers.config.hypervisor.default_memory: "6144"
