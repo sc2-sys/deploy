@@ -9,6 +9,7 @@
     # reboot)
     - include_tasks: tasks/docker.yaml
     - include_tasks: tasks/update_host_kernel.yaml
+    - include_tasks: tasks/qemu.yaml
     - include_tasks: tasks/rust.yaml
     - include_tasks: tasks/code.yaml
     - include_tasks: tasks/pull_images.yaml
