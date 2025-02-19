@@ -18,6 +18,22 @@ SVSM_GUEST_IMAGE = join(SVSM_QEMU_DATA_DIR, "sc2.qcow2")
 SVSM_GUEST_IMAGE_SIZE = "10G"
 
 
+def get_kernel_version_from_ctr_image():
+    tmp_file = "/tmp/sc2_kernel_release"
+    copy_from_ctr_image(
+        SVSM_KERNEL_IMAGE_TAG,
+        ["/git/coconut-svsm/linux/include/config/kernel.release"],
+        [tmp_file],
+    )
+    with open(tmp_file, "r") as fh:
+        kernel_version = fh.read().strip()
+    kernel_version_trimmed = (
+        kernel_version if not kernel_version.endswith("+") else kernel_version[:-1]
+    )
+
+    return kernel_version, kernel_version_trimmed
+
+
 @task
 def build_guest_image(ctx, clean=False):
     """
@@ -31,17 +47,7 @@ def build_guest_image(ctx, clean=False):
         run(f"sudo rm -f {SVSM_GUEST_IMAGE}", shell=True, check=True)
 
     # Get the kernel version we will install in the guest image
-    tmp_file = "/tmp/sc2_kernel_release"
-    copy_from_ctr_image(
-        SVSM_KERNEL_IMAGE_TAG,
-        ["/git/coconut-svsm/linux/include/config/kernel.release"],
-        [tmp_file],
-    )
-    with open(tmp_file, "r") as fh:
-        kernel_version = fh.read().strip()
-    kernel_version_trimmed = (
-        kernel_version if not kernel_version.endswith("+") else kernel_version[:-1]
-    )
+    kernel_version, kernel_version_trimmed = get_kernel_version_from_ctr_image()
 
     # Prepare our rootfs with the kata agent and co.
     rootfs_base_dir = "/tmp/svsm_rootfs_base_dir"
@@ -51,8 +57,7 @@ def build_guest_image(ctx, clean=False):
 
     # Install deps
     result = run(
-        "sudo DEBIAN_FRONTEND=noninteractive apt install -y "
-        "qemu-utils libguestfs-tools",
+        "sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-utils",
         shell=True,
         capture_output=True,
     )
@@ -67,21 +72,56 @@ def build_guest_image(ctx, clean=False):
     )
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
 
-    # Format it as an ext4 fielsystem
-    result = run(f"sudo mkfs.ext4 {SVSM_GUEST_IMAGE}", shell=True, capture_output=True)
+    # Attach a loop device to the qcow image
+    loop_device_file = "/tmp/svsm_loop_device"
+    run(
+        f"sudo losetup --find --show {SVSM_GUEST_IMAGE} > {loop_device_file}",
+        shell=True,
+        check=True,
+    )
+    with open(loop_device_file, "r") as fh:
+        loop_device = fh.read().strip()
+
+    # Create a partition in the image
+    run(f"sudo parted -s {loop_device} mklabel msdos", shell=True, check=True)
+    run(
+        f"sudo parted -s {loop_device} mkpart primary ext4 1MiB 100%",
+        shell=True,
+        check=True,
+    )
+
+    # Detach and reattach loop device to pick up new partition
+    run(f"sudo losetup -d {loop_device}", shell=True, check=True)
+    run(
+        f"sudo losetup --find --show -P {SVSM_GUEST_IMAGE} > {loop_device_file}",
+        shell=True,
+        check=True,
+    )
+    with open(loop_device_file, "r") as fh:
+        loop_device = fh.read().strip()
+    loop_device_part = loop_device + "p1"
+
+    # Format partition as ext4 filesystem
+    result = run(f"sudo mkfs.ext4 {loop_device_part}", shell=True, capture_output=True)
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
 
-    # Mount the qcow image to copy in our rootfs
+    # Create mount dir
     mount_dir = "/tmp/svsm_guest_image"
     if exists(mount_dir):
         run(f"sudo rm -rf {mount_dir}", shell=True, check=True)
     run(f"sudo mkdir -p {mount_dir}", shell=True, check=True)
+
+    # Mount loop device partition to mount dir
     result = run(
-        f"sudo guestmount -a {SVSM_GUEST_IMAGE} -m /dev/sda {mount_dir}",
+        f"sudo mount {loop_device_part} {mount_dir}",
         shell=True,
         capture_output=True,
     )
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+
+    def cleanup_loop_device():
+        run(f"sudo umount {mount_dir}", shell=True, check=True)
+        run(f"sudo losetup -d {loop_device}", shell=True, check=True)
 
     # Copy our rootfs into the qcow image
     result = run(f"sudo cp -a {rootfs_dir}/* {mount_dir}", shell=True, check=True)
@@ -91,10 +131,12 @@ def build_guest_image(ctx, clean=False):
     ctr_paths = [
         "/git/coconut-svsm/linux/arch/x86/boot/bzImage",
         f"/opt/sc2/svsm/share/linux/modules/lib/modules/{kernel_version}",
+        "/git/coconut-svsm/linux/.config",
     ]
     host_paths = [
         f"{mount_dir}/boot/vmlinuz-{kernel_version_trimmed}",
         f"{mount_dir}/lib/modules/{kernel_version_trimmed}",
+        f"{mount_dir}/boot/config-{kernel_version_trimmed}",
     ]
     copy_from_ctr_image(
         SVSM_KERNEL_IMAGE_TAG, ctr_paths, host_paths, requires_sudo=True
@@ -108,62 +150,28 @@ def build_guest_image(ctx, clean=False):
             run(f"sudo umount {mount_dir}/{subsystem}", shell=True, check=True)
 
     for subsystem in subsystems:
-        run(
+        result = run(
             f"sudo mount --bind /{subsystem} {mount_dir}/{subsystem}",
             shell=True,
-            check=True,
-        )
-
-    # First, install manually install apt in the rootfs
-    # TODO: probably get rid if this mess
-    """
-    for apt_dir in ["/usr/bin/apt", "/usr/lib/apt", "/var/lib/apt", "/var/lib/dpkg"]:
-        if apt_dir == "/usr/bin/apt":
-            result = run(
-                f"sudo cp -r {apt_dir}* {mount_dir}/usr/bin/",
-                capture_output=True,
-                shell=True,
-            )
-        else:
-            result = run(
-                f"sudo cp -r {apt_dir} {mount_dir}{apt_dir}",
-                capture_output=True,
-                shell=True,
-            )
-
-        if result.returncode != 0:
-            print(result.stderr.decode("utf-8").strip())
-            unmount_subsys()
-            raise RuntimeError("Error installing APT")
-
-    for shared_lib in [
-        "libapt-private.so.0.0",
-        "libapt-pkg.so.6.0",
-        "libstdc++.so.6",
-        "libxxhash.so.0",
-    ]:
-        result = run(
-            f"sudo cp /lib/x86_64-linux-gnu/{shared_lib} "
-            f"{mount_dir}/lib/x86_64-linux-gnu/{shared_lib}",
             capture_output=True,
-            shell=True,
         )
+
         if result.returncode != 0:
             print(result.stderr.decode("utf-8").strip())
-            unmount_subsys()
-            raise RuntimeError("Error installing APT shared libs")
-    # TODO: end of the mess to be deleted
-    """
+            cleanup_loop_device()
+            raise RuntimeError("Error mounting /proc and /sys")
 
+    run(f"sudo mkdir -p {mount_dir}/usr/share/locale", shell=True, check=True)
+    # Make sure to soft-link /bin/sh to the right binary, as it is used
+    #  by update-grub
     cmd = """
-sudo chroot {mount_dir} /usr/bin/bash <<EOF
-apt update --allow-insecure-repositories
-apt install -y {packages}
-grub-install --target=i386-pc /dev/sda
+sudo chroot {mount_dir} /usr/bin/sh <<EOF
+ln -s /usr/bin/dash /bin/sh
+grub-install --target=i386-pc {loop_device}
 update-grub
 EOF
 """.format(
-        mount_dir=mount_dir, packages="grub2 grub2-common grub-pc"
+        mount_dir=mount_dir, loop_device=loop_device
     )
     result = run(cmd, shell=True, capture_output=True)
     if result.returncode != 0:
@@ -173,8 +181,9 @@ EOF
 
     # Set the kernel as our default
     cmd = """
-sudo chroot {mount_dir} /usr/bin/bash <<EOF
-mkinitramfs -o /boot/initrd.img-{kernel_version} $(ls /lib/modules)
+sudo chroot {mount_dir} /usr/bin/sh <<EOF
+# TODO: `mkinitramfs` seem to not be working (do we need it at all?)
+mkinitramfs -o /boot/initrd.img-{kernel_version} {kernel_version} 2> /tmp/mk_log
 echo "GRUB_DEFAULT='Advanced options for Ubuntu>vmlinuz-{kernel_version}'" \
         >> /etc/default/grub
 update-grub
@@ -186,12 +195,12 @@ EOF
     if result.returncode != 0:
         print(result.stderr.decode("utf-8").strip())
         unmount_subsys()
+        cleanup_loop_device()
         raise RuntimeError("Error setting default kernel")
 
     # Clean-up
     unmount_subsys()
-    # result = run(f"guestunmount {mount_dir}", shell=True, capture_output=True)
-    # assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+    cleanup_loop_device()
 
 
 def do_build_kernel(nocache=False):
@@ -316,7 +325,7 @@ def install(debug, clean):
 
     run(f"sudo mkdir -p ${SVSM_ROOT}", shell=True, check=True)
 
-    # TODO: install guest kernel
+    # TODO: install guest qcow2 image
 
     # Install QEMU and OVMF
     ctr_paths = [
@@ -335,3 +344,47 @@ def install(debug, clean):
 @task
 def foo(ctx):
     install(debug=False, clean=False)
+
+
+@task
+def install_host_kernel(ctx):
+    """
+    Install the SVSM kernel in the host system
+    """
+    kernel_version, kernel_version_trimmed = get_kernel_version_from_ctr_image()
+
+    # Install the SVSM guest kernel into the host
+    ctr_paths = [
+        "/git/coconut-svsm/linux/arch/x86/boot/bzImage",
+        f"/opt/sc2/svsm/share/linux/modules/lib/modules/{kernel_version}",
+        "/git/coconut-svsm/linux/.config",
+    ]
+    host_paths = [
+        f"/boot/vmlinuz-{kernel_version_trimmed}",
+        f"/lib/modules/{kernel_version_trimmed}",
+        f"/boot/config-{kernel_version_trimmed}",
+    ]
+    copy_from_ctr_image(
+        SVSM_KERNEL_IMAGE_TAG, ctr_paths, host_paths, requires_sudo=True
+    )
+
+    # Generate the corresponding kernel image
+    result = run(
+        f"sudo mkinitramfs -o /boot/initrd.img-{kernel_version_trimmed} "
+        f"{kernel_version_trimmed}",
+        shell=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+
+    # Replace the GRUB_DEFAULT value
+    grub_default = (
+        "Advanced options for Ubuntu>Ubuntu, with Linux " f"{kernel_version_trimmed}"
+    )
+    result = run(
+        f"sudo sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT=\"{grub_default}\"/' "
+        "/etc/default/grub",
+        shell=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
