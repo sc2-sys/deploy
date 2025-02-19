@@ -24,6 +24,7 @@ snapshotter="host-share"
 
 @test "${TEST_NAME}: runtime=${SC2_RUNTIME_CLASSES[3]} snapshotter=${snapshotter}" {
     [[ "$SC2_TEE" == "tdx" ]] && skip "#142"
+
     run_python_hello_world "${SC2_RUNTIME_CLASSES[3]}"
 }
 
