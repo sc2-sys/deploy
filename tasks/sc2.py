@@ -27,6 +27,7 @@ from tasks.operator import (
     install_cc_runtime as operator_install_cc_runtime,
 )
 from tasks.ovmf import install as ovmf_install
+from tasks.util.azure import on_azure
 from tasks.util.containerd import restart_containerd
 from tasks.util.docker import pull_artifact_images
 from tasks.util.env import (
@@ -148,6 +149,17 @@ def install_sc2_runtime(debug=False):
             vm_cache_number=VM_CACHE_SIZE
         )
         update_toml(dst_conf_path, updated_toml_str)
+
+        # If running on Azure, point QEMU to the system-wide qemu
+        if on_azure():
+            qemu_path = "/usr/local/bin/qemu-system-x86_64"
+            updated_toml_str = """
+            [hypervisor.qemu]
+            path = "{qemu_path}"
+            valid_hypervisor_paths = [ "{qemu_path}" ]
+            """.format(qemu_path=qemu_path)
+
+            update_toml(dst_conf_path, updated_toml_str)
 
         # Update containerd to point the SC2 runtime to the right config
         updated_toml_str = """
