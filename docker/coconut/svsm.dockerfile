@@ -25,4 +25,4 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y \
     && cd ~/svsm \
     && git submodule update --init \
     && cargo install bindgen-cli \
-    && FW_FILE=/bin/ovmf-svsm.fd make
+    && FW_FILE=/bin/ovmf-svsm.fd ./build --release configs/qemu-target.json

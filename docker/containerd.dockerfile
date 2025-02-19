@@ -8,9 +8,7 @@ FROM ghcr.io/sc2-sys/base:0.10.0
 RUN apt update \
     && apt upgrade -y \
     && apt install -y \
-        libbtrfs-dev \
-        gopls \
-        make
+        libbtrfs-dev
 
 # Clone and build containerd
 ARG CODE_DIR=/go/src/github.com/sc2-sys/containerd

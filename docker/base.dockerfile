@@ -10,10 +10,15 @@ RUN apt update \
     && apt upgrade -y \
     && apt install -y \
         clang \
+        cmake \
         curl \
+        g++ \
+        gcc \
         git \
+        gopls \
         libclang-dev \
         libdevmapper-dev \
+        make \
         wget
 
 # Clone the dotfiles repo
