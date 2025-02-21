@@ -29,6 +29,21 @@ RUN mkdir -p ${CODE_DIR} \
     && make -f igvm_c/Makefile \
     && make -f igvm_c/Makefile install
 
+# Clone and build SVSM's OVMF
+ARG CODE_DIR=/git/coconut-svsm/edk2
+RUN mkdir -p ${CODE_DIR} \
+    && git clone https://github.com/coconut-svsm/edk2 ${CODE_DIR} \
+    && cd ${CODE_DIR} \
+    && git checkout svsm \
+    && git submodule init \
+    && git submodule update \
+    && export PYTHON3_ENABLE=TRUE \
+    && export PYTHON_COMMAND=python3 \
+    && make -j $(nproc) -C BaseTools/ \
+    && . ./edksetup.sh --reconfig \
+    && build -a X64 -b RELEASE -t GCC5 -DTPM2_ENABLE -p OvmfPkg/OvmfPkgX64.dsc \
+    && build -a X64 -b DEBUG -t GCC5 -DTPM2_ENABLE -p OvmfPkg/OvmfPkgX64.dsc
+
 # Clone and build IGVM-enabled Qemu
 ARG QEMU_DATADIR
 ARG QEMU_PREFIX
@@ -50,6 +65,7 @@ RUN mkdir -p ${CODE_DIR} \
         # Must enable IGVM
         --enable-igvm \
         --enable-kvm \
+        --enable-slirp \
         --enable-trace-backends=log,simple \
         # As a reference we use Kata's --disable-x flags when building QEMU:
         # https://github.com/kata-containers/kata-containers/blob/main/tools/packaging/scripts/configure-hypervisor.sh
@@ -76,7 +92,6 @@ RUN mkdir -p ${CODE_DIR} \
         --disable-rdma \
         --disable-replication \
         --disable-sdl \
-        --disable-slirp \
         --disable-snappy \
         --disable-spice \
         --disable-tcg-interpreter \
@@ -91,20 +106,5 @@ RUN mkdir -p ${CODE_DIR} \
         --disable-vnc-sasl \
         --disable-vte \
         --disable-xen \
-        --static \
     && make -j $(nproc) \
     && make install -j $(nproc)
-
-# Clone and build SVSM's OVMF
-ARG CODE_DIR=/git/coconut-svsm/edk2
-RUN mkdir -p ${CODE_DIR} \
-    && git clone https://github.com/coconut-svsm/edk2 ${CODE_DIR} \
-    && cd ${CODE_DIR} \
-    && git checkout svsm \
-    && git submodule init \
-    && git submodule update \
-    && export PYTHON3_ENABLE=TRUE \
-    && export PYTHON_COMMAND=python3 \
-    && make -j $(nproc) -C BaseTools/ \
-    && . ./edksetup.sh --reconfig \
-    && build -a X64 -b RELEASE -t GCC5 -DTPM2_ENABLE -p OvmfPkg/OvmfPkgX64.dsc

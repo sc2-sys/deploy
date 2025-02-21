@@ -47,7 +47,6 @@ RUN mkdir -p /usr/src \
         --disable-guest-agent-msi \
         --disable-libiscsi \
         --disable-libudev \
-        --disable-linux-user \
         --disable-live-block-migration \
         --disable-lzo \
         --disable-opengl \

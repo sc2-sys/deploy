@@ -5,6 +5,7 @@ RUN apt update \
     && apt install -y \
         autoconf \
         autoconf-archive \
+        libclang-dev \
         libssl-dev \
         pkg-config
 
@@ -17,5 +18,7 @@ RUN mkdir -p ${CODE_DIR} \
     && cd ${CODE_DIR} \
     && git submodule update --init \
     && rustup target add x86_64-unknown-none \
-    && cargo install bindgen-cli
-    # && FW_FILE=/bin/ovmf-svsm.fd make
+    && cargo install bindgen-cli \
+    # TODO: we may not want a releae build for the time being, as we cannot see
+    # the SVSM logs we care about
+    && FW_FILE=/bin/ovmf-svsm.fd ./build --release configs/qemu-target.json
