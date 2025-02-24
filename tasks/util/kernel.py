@@ -1,4 +1,18 @@
+from os import environ
 from subprocess import run
+from tasks.util.versions import HOST_KERNEL_VERSION_SNP, HOST_KERNEL_VERSION_TDX
+
+
+def get_host_kernel_expected_version():
+    sc2_runtime_class = environ["SC2_RUNTIME_CLASS"]
+    if "snp" in sc2_runtime_class:
+        return HOST_KERNEL_VERSION_SNP
+
+    if "tdx" in sc2_runtime_class:
+        return HOST_KERNEL_VERSION_TDX
+
+    print("ERROR: neither 'snp' nor 'tdx' detected!")
+    raise RuntimeError("Error detecting expected host kernel")
 
 
 def get_host_kernel_version():

@@ -25,6 +25,7 @@ from tasks.operator import (
     install as operator_install,
     install_cc_runtime as operator_install_cc_runtime,
 )
+from tasks.ovmf import install as ovmf_install
 from tasks.util.containerd import restart_containerd
 from tasks.util.docker import pull_artifact_images
 from tasks.util.env import (
@@ -34,7 +35,6 @@ from tasks.util.env import (
     CONTAINERD_CONFIG_ROOT,
     KATA_CONFIG_DIR,
     KATA_ROOT,
-    KATA_IMAGE_TAG,
     KATA_IMG_DIR,
     PROJ_ROOT,
     SC2_CONFIG_DIR,
@@ -47,6 +47,7 @@ from tasks.util.kata import (
     replace_agent as replace_kata_agent,
     replace_shim as replace_kata_shim,
 )
+from tasks.util.kernel import get_host_kernel_expected_version, get_host_kernel_version
 from tasks.util.kubeadm import run_kubectl_command
 from tasks.util.registry import (
     HOST_CERT_DIR,
@@ -54,7 +55,11 @@ from tasks.util.registry import (
     stop as stop_local_registry,
 )
 from tasks.util.toml import update_toml
-from tasks.util.versions import COCO_VERSION, GUEST_KERNEL_VERSION, KATA_VERSION
+from tasks.util.versions import (
+    COCO_VERSION,
+    GUEST_KERNEL_VERSION,
+    OVMF_VERSION,
+)
 from time import sleep
 
 
@@ -213,9 +218,18 @@ def deploy(ctx, debug=False, clean=False):
     if exists(SC2_DEPLOYMENT_FILE):
         print(f"ERROR: SC2 already deployed (file {SC2_DEPLOYMENT_FILE} exists)")
         print("ERROR: only remove deployment file if you know what you are doing!")
-        raise RuntimeError("SC2 already deployed!")
+        return
 
-    # TODO: Fail-fast if we are not using the expected host kernel
+    # Fail-fast if we are not using the expected host kernel
+    host_kernel_version = get_host_kernel_version()
+    host_kernel_expected_version = get_host_kernel_expected_version()
+    if host_kernel_version != host_kernel_expected_version:
+        print(
+            f"ERROR: wrong host kernel: expected {host_kernel_expected_version} "
+            f"- got {host_kernel_version}"
+        )
+        print("ERROR: install the right host kernel (./docs/host_kernel.md)")
+        return
 
     if clean:
         # Remove all directories that we populate and modify
@@ -292,13 +306,13 @@ def deploy(ctx, debug=False, clean=False):
     # Install Knative
     knative_install(debug=debug)
 
-    # Apply general patches to the Kata Agent (and initrd), making sure we
-    # have the latest patched version
-    print_dotted_line(f"Pulling latest Kata image (v{KATA_VERSION})")
-    result = run(f"docker pull {KATA_IMAGE_TAG}", shell=True, capture_output=True)
-    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
-    if debug:
-        print(result.stdout.decode("utf-8").strip())
+    print_dotted_line(f"Installing OVMF (v{OVMF_VERSION})")
+    ovmf_install()
+    print("Success!")
+
+    # TODO: update SNP classes to use default QEMU
+
+    # Apply general patches to the Kata Agent (and initrd)
     replace_kata_agent(
         dst_initrd_path=join(
             KATA_IMG_DIR, "kata-containers-initrd-confidential-sc2-baseline.img"

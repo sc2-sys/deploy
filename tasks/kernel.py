@@ -30,9 +30,9 @@ def build_guest(debug=False, hot_replace=False):
 
     script_files = [
         "kernel/build-kernel.sh",
-        "kernel/configs/",
+        "kernel/configs",
         "kernel/kata_config_version",
-        "kernel/patches/",
+        "kernel/patches",
         "scripts/apply_patches.sh",
         "scripts/lib.sh",
     ]

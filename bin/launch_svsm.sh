@@ -17,10 +17,10 @@ trap "stty '$orig_stty'" EXIT
 # Remap Ctrl-C to Ctrl-] to allow the guest to handle Ctrl-C.
 stty intr ^]
 
+    # -enable-kvm \
 sudo ${SVSM_ROOT}/bin/qemu-system-x86_64 \
-    -enable-kvm \
     -cpu EPYC-v4 \
-    -machine q35,confidential-guest-support=sev0,memory-backend=ram1,igvm-cfg=igvm0 \
+    -machine q35,confidential-guest-support=sev0,memory-backend=ram1,igvm-cfg=igvm0,accel=kvm \
     -object memory-backend-memfd,id=ram1,size=8G,share=true,prealloc=false,reserve=false \
     -object sev-snp-guest,id=sev0,cbitpos=${CBIT_POS},reduced-phys-bits=1 \
     -object igvm-cfg,id=igvm0,file=$IGVM \
