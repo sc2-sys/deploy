@@ -35,6 +35,10 @@ def copy_from_ctr_image(ctr_image, ctr_paths, host_paths, requires_sudo=False):
     )
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
 
+    def cleanup():
+        result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
+        assert result.returncode == 0
+
     for ctr_path, host_path in zip(ctr_paths, host_paths):
         host_dir = dirname(host_path)
         if not exists(host_dir):
@@ -53,9 +57,10 @@ def copy_from_ctr_image(ctr_image, ctr_paths, host_paths, requires_sudo=False):
         except AssertionError:
             stderr = result.stderr.decode("utf-8").strip()
             print(f"Error copying {ctr_image}:{ctr_path} to {host_path}: {stderr}")
-            break
+            cleanup()
+            raise RuntimeError("Error copying from container!")
 
-    result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
+    cleanup()
 
 
 def build_image(image_tag, dockerfile, build_args=None):

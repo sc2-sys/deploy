@@ -1,15 +1,18 @@
 #!/bin/bash
 
-set -e
-
 SVSM_ROOT=/opt/sc2/svsm
 
 # C-bit pos may be obtained by running coconut-svsm/svsm/utils/cbit
 CBIT_POS=51
+
 IGVM=${SVSM_ROOT}/share/igvm/coconut-qemu.igvm
-QCOW2=${SVSM_ROOT}/share/qemu/sc2.qcow2
 KERNEL=${SVSM_ROOT}/share/sc2/vmlinuz-kata-containers-sc2
-INITRD=${SVSM_ROOT}/share/sc2/kata-containers-sc2.img
+# KERNEL=/home/csegarra/git/sc2-sys/svsm-linux/arch/x86/boot/bzImage
+INITRD=/opt/sc2/svsm/share/sc2/initrd-kata.img
+
+# Ensure terminal settings are restored on exit
+orig_stty=$(stty -g)
+trap "stty '$orig_stty'" EXIT
 
 # Remap Ctrl-C to Ctrl-] to allow the guest to handle Ctrl-C.
 stty intr ^]
@@ -26,7 +29,7 @@ sudo ${SVSM_ROOT}/bin/qemu-system-x86_64 \
     -netdev user,id=vmnic -device e1000,netdev=vmnic,romfile= \
     -kernel ${KERNEL} \
     -initrd ${INITRD} \
-    -append "console=ttyS0 loglevel=8 rdinit=/bin/sh" \
+    -append "console=ttyS0 loglevel=8 earlyprintk=serial rdinit=/bin/sh" \
     -monitor none \
     -nographic \
     -serial stdio \

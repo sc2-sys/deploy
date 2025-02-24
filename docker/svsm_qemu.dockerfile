@@ -58,7 +58,7 @@ RUN mkdir -p ${CODE_DIR} \
         # The `--datadir` flag is the path where QEMU will look for firmware
         # images. The default `--datadir` path when using a system provisioned
         # by the operator is: `/opt/confidential-containers/share/kata-qemu`.
-        # For our QEMu fork we use `/opt/sc2/svsm/share/qemu
+        # For our QEMU fork we use `/opt/sc2/svsm/share/qemu
         --datadir=${QEMU_DATADIR} \
         --prefix=${QEMU_PREFIX} \
         --target-list=x86_64-softmmu \

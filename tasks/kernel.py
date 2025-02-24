@@ -1,8 +1,10 @@
 from invoke import task
 from os import makedirs
 from os.path import exists, join
+from shutil import rmtree
 from tasks.util.env import KATA_CONFIG_DIR, KATA_IMG_DIR, KATA_RUNTIMES, SC2_RUNTIMES
 from tasks.util.kata import KATA_SOURCE_DIR, copy_from_kata_workon_ctr
+from tasks.util.kernel import grub_update_default_kernel
 from tasks.util.toml import update_toml
 from tasks.util.versions import GUEST_KERNEL_VERSION
 from subprocess import run
@@ -123,3 +125,37 @@ def hot_replace_guest(ctx, debug=False):
     Hot-replace guest kernel
     """
     build_guest(debug=debug, hot_replace=True)
+
+
+@task
+def install_host_kernel_from_upstream(ctx):
+    # TODO: find a way to automate the grepping of deb files and kernel name
+    kernel_ver = "6.13"
+    kernel_name = f"{kernel_ver}.0-061300-generic"
+
+    tmp_dir = f"/tmp/kernel-{kernel_ver}"
+    if exists(tmp_dir):
+        rmtree(tmp_dir)
+    makedirs(tmp_dir)
+
+    base_url = f"https://kernel.ubuntu.com/mainline/v{kernel_ver}/amd64/"
+    # The order of this files in the array _matters_
+    deb_files = [
+        "linux-headers-6.13.0-061300_6.13.0-061300.202501302155_all.deb",
+        f"linux-headers-{kernel_name}_6.13.0-061300.202501302155_amd64.deb",
+        f"linux-modules-{kernel_name}_6.13.0-061300.202501302155_amd64.deb",
+        f"linux-image-unsigned-{kernel_name}_6.13.0-061300.202501302155_amd64.deb",
+    ]
+    for deb_file in deb_files:
+        result = run(
+            f"wget {base_url}/{deb_file}", shell=True, capture_output=True, cwd=tmp_dir
+        )
+        assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+
+    for deb_file in deb_files:
+        result = run(
+            f"sudo dpkg -i {deb_file}", shell=True, capture_output=True, cwd=tmp_dir
+        )
+        assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+
+    grub_update_default_kernel(kernel_name)
