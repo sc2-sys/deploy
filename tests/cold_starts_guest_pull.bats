@@ -1,14 +1,17 @@
 #!/usr/bin/env bats
 
-source ./tests/utils/env.sh
-source ./tests/utils/helpers.sh
-
 setup_file() {
+    load utils/env.sh
+    load utils/helpers.sh
+
     set_snapshotter_mode "guest-pull"
 }
 
 # Make sure we purge before each test so that we have a cold start
 setup() {
+    load utils/env.sh
+    load utils/helpers.sh
+
     ${INV} nydus-snapshotter.purge
 }
 

@@ -1,10 +1,15 @@
 #!/usr/bin/env bats
 
-source ./tests/utils/env.sh
-source ./tests/utils/helpers.sh
-
 setup_file() {
+    load utils/env.sh
+    load utils/helpers.sh
+
     set_snapshotter_mode "guest-pull"
+}
+
+setup() {
+    load utils/env.sh
+    load utils/helpers.sh
 }
 
 teardown() {
