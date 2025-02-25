@@ -330,6 +330,13 @@ def deploy(ctx, debug=False, clean=False):
         requires_root=True,
     )
 
+    # Apply general patches to the Kata runtime
+    replace_kata_shim(
+        dst_shim_binary=join(KATA_ROOT, "bin", "containerd-shim-kata-v2"),
+        dst_runtime_binary=join(KATA_ROOT, "bin", "kata-runtime"),
+        sc2=False,
+    )
+
     # Apply general patches to the Kata Agent (and initrd)
     replace_kata_agent(
         dst_initrd_path=join(
