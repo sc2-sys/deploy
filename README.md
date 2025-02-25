@@ -19,14 +19,9 @@ https://github.com/confidential-containers) project.
 
 SC2 currently supports AMD SEV-SNP and Intel TDX as underlying TEE, and requires
 deployment on a bare-metal host. Before moving forward, make sure you have a
-correct installation. For SEV-SNP you may use [`snphost ok`](
-https://github.com/virtee/snphost.git).
-
-Lastly, make sure you are using the exact host kernel:
-
-| **SEV-SNP** | **TDX** |
-|---|---|
-| [6.8.0-rc5-next-20240221-snp-host-cc2568386](https://github.com/confidential-containers/linux/tree/amd-snp-host-202402240000) | [6.8.0-1004-intel](https://git.launchpad.net/~kobuk-team/ubuntu/+source/linux-intel/tree/?h=noble-main-next) |
+correct host installation. For SEV-SNP you may use [`snphost ok`](
+https://github.com/virtee/snphost.git). Also make sure you have the [right
+host kernel](./docs/host_kernel.md).
 
 ## Quick Start
 

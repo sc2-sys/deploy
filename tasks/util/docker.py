@@ -1,5 +1,13 @@
+from os.path import dirname, exists
 from subprocess import run
-from tasks.util.env import PROJ_ROOT
+from tasks.util.env import GHCR_URL, GITHUB_ORG, PROJ_ROOT, print_dotted_line
+from tasks.util.versions import (
+    CONTAINERD_VERSION,
+    KATA_VERSION,
+    NYDUS_SNAPSHOTTER_VERSION,
+    NYDUS_VERSION,
+    OVMF_VERSION,
+)
 
 
 def is_ctr_running(ctr_name):
@@ -28,7 +36,17 @@ def copy_from_ctr_image(ctr_image, ctr_paths, host_paths, requires_sudo=False):
     )
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
 
+    def cleanup():
+        result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
+        assert result.returncode == 0
+
     for ctr_path, host_path in zip(ctr_paths, host_paths):
+        host_dir = dirname(host_path)
+        if not exists(host_dir):
+            mkdir = "sudo mkdir" if requires_sudo else "mkdir"
+            result = run(f"{mkdir} -p {host_dir}", shell=True, capture_output=True)
+            assert result.returncode == 0
+
         try:
             prefix = "sudo " if requires_sudo else ""
             result = run(
@@ -40,9 +58,10 @@ def copy_from_ctr_image(ctr_image, ctr_paths, host_paths, requires_sudo=False):
         except AssertionError:
             stderr = result.stderr.decode("utf-8").strip()
             print(f"Error copying {ctr_image}:{ctr_path} to {host_path}: {stderr}")
-            break
+            cleanup()
+            raise RuntimeError("Error copying from container!")
 
-    result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
+    cleanup()
 
 
 def build_image(image_tag, dockerfile, build_args=None):
@@ -73,3 +92,23 @@ def stop_container(ctr_name):
 def build_image_and_run(image_tag, dockerfile, ctr_name, build_args=None):
     build_image(image_tag, dockerfile, build_args)
     run_container(image_tag, ctr_name)
+
+
+def pull_artifact_images(debug=False):
+    print_dotted_line("Pulling artifact container images")
+    components = ["containerd", "kata-containers", "nydus", "nydus-snapshotter", "ovmf"]
+    versions = [
+        CONTAINERD_VERSION,
+        KATA_VERSION,
+        NYDUS_VERSION,
+        NYDUS_SNAPSHOTTER_VERSION,
+        OVMF_VERSION,
+    ]
+    for component, version in zip(components, versions):
+        docker_cmd = f"docker pull {GHCR_URL}/{GITHUB_ORG}/{component}:{version}"
+        result = run(docker_cmd, shell=True, capture_output=True)
+        assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+        if debug:
+            print(result.stdout.decode("utf-8").strip())
+
+    print("Success!")

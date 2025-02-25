@@ -23,8 +23,7 @@ from . import registry
 from . import sc2
 from . import sev
 from . import skopeo
-
-from tasks.coconut import ns as coconut_ns
+from . import svsm
 
 ns = Collection(
     base,
@@ -50,6 +49,5 @@ ns = Collection(
     sc2,
     sev,
     skopeo,
+    svsm,
 )
-
-ns.add_collection(coconut_ns, name="coconut")

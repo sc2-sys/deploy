@@ -7,8 +7,6 @@ FROM ghcr.io/sc2-sys/base:0.10.0
 # Install APT dependencies
 RUN apt-get update \
     && apt-get install -y \
-        gopls \
-        make \
         protobuf-compiler
 
 ARG CODE_DIR=/go/src/github.com/sc2-sys/nydus-snapshotter

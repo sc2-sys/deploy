@@ -108,7 +108,7 @@ def build_pause_image(sc2, debug, hot_replace):
     makedirs(join(pause_image_build_dir, "static-build"))
     makedirs(join(pause_image_build_dir, "scripts"))
 
-    script_files = ["static-build/pause-image/", "scripts/lib.sh"]
+    script_files = ["static-build/pause-image", "scripts/lib.sh"]
     for ctr_path, host_path in zip(
         [
             join(
@@ -157,22 +157,15 @@ def build_pause_image(sc2, debug, hot_replace):
     )
 
 
-def replace_agent(
-    dst_initrd_path=join(KATA_IMG_DIR, "kata-containers-initrd-confidential-sc2.img"),
-    debug=False,
-    sc2=False,
-    hot_replace=False,
-):
+def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=False):
     """
-    Replace the kata-agent with a custom-built one
+    This function takes a directory as input, and generates the root-filesystem
+    needed in SC2 at <tmp_rootfs_base_dir>/rootfs. The result can be consumed
+    to pack an `initrd` or a .qcow2 image.
+    """
 
-    We use Kata's `rootfs-builder` to prepare a `rootfs` based on an Ubuntu
-    image with custom packages, then copy into the rootfs additional files
-    that we may need, and finally package it using Kata's `initrd-builder`.
-    """
     # ----- Prepare temporary rootfs directory -----
 
-    tmp_rootfs_base_dir = "/tmp/sc2-rootfs-build-dir"
     tmp_rootfs_dir = join(tmp_rootfs_base_dir, "rootfs")
     tmp_rootfs_scripts_dir = join(tmp_rootfs_base_dir, "osbuilder")
 
@@ -194,7 +187,7 @@ def replace_agent(
     script_files = [
         "initrd-builder/initrd_builder.sh",
         "rootfs-builder/rootfs.sh",
-        "rootfs-builder/nvidia/",
+        "rootfs-builder/nvidia",
         "rootfs-builder/ubuntu/config.sh",
         "rootfs-builder/ubuntu/Dockerfile.in",
         "rootfs-builder/ubuntu/rootfs_lib.sh",
@@ -319,6 +312,26 @@ def replace_agent(
                     shell=True,
                     check=True,
                 )
+
+
+def replace_agent(
+    dst_initrd_path=join(KATA_IMG_DIR, "kata-containers-initrd-confidential-sc2.img"),
+    debug=False,
+    sc2=False,
+    hot_replace=False,
+):
+    """
+    Replace the kata-agent with a custom-built one
+
+    We use Kata's `rootfs-builder` to prepare a `rootfs` based on an Ubuntu
+    image with custom packages, then copy into the rootfs additional files
+    that we may need, and finally package it using Kata's `initrd-builder`.
+    """
+    # Generate rootfs
+    tmp_rootfs_base_dir = "/tmp/sc2-rootfs-build-dir"
+    tmp_rootfs_dir = join(tmp_rootfs_base_dir, "rootfs")
+    tmp_rootfs_scripts_dir = join(tmp_rootfs_base_dir, "osbuilder")
+    prepare_rootfs(tmp_rootfs_base_dir, debug=debug, sc2=sc2, hot_replace=hot_replace)
 
     # ----- Pack rootfs into initrd using Kata's script -----
 
