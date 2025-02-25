@@ -35,8 +35,8 @@ def install():
 
 
 @task
-def build(ctx):
+def build(ctx, nocache=False, push=False):
     """
     Build the OVMF work-on container image
     """
-    do_ovmf_build()
+    do_ovmf_build(nocache=nocache, push=push)
