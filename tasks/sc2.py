@@ -326,7 +326,7 @@ def deploy(ctx, debug=False, clean=False):
     update_toml(
         join(KATA_CONFIG_DIR, "configuration-qemu-snp.toml"),
         updated_toml_str,
-        requires_sudo=True,
+        requires_root=True,
     )
 
     # Apply general patches to the Kata Agent (and initrd)
@@ -337,7 +337,6 @@ def deploy(ctx, debug=False, clean=False):
         debug=debug,
         sc2=False,
     )
-    print("Success!")
 
     # Install sc2 runtime with patches
     print_dotted_line(f"Installing SC2 (v{COCO_VERSION})")

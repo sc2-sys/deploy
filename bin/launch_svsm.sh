@@ -7,7 +7,6 @@ CBIT_POS=51
 
 IGVM=${SVSM_ROOT}/share/igvm/coconut-qemu.igvm
 KERNEL=${SVSM_ROOT}/share/sc2/vmlinuz-kata-containers-sc2
-# KERNEL=/home/csegarra/git/sc2-sys/svsm-linux/arch/x86/boot/bzImage
 INITRD=/opt/sc2/svsm/share/sc2/initrd-kata.img
 
 # Ensure terminal settings are restored on exit
@@ -17,7 +16,6 @@ trap "stty '$orig_stty'" EXIT
 # Remap Ctrl-C to Ctrl-] to allow the guest to handle Ctrl-C.
 stty intr ^]
 
-    # -enable-kvm \
 sudo ${SVSM_ROOT}/bin/qemu-system-x86_64 \
     -cpu EPYC-v4 \
     -machine q35,confidential-guest-support=sev0,memory-backend=ram1,igvm-cfg=igvm0,accel=kvm \
