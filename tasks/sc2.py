@@ -157,6 +157,7 @@ def install_sc2_runtime(debug=False):
             [hypervisor.qemu]
             path = "{qemu_path}"
             valid_hypervisor_paths = [ "{qemu_path}" ]
+            disable_nesting_checks = true
             """.format(qemu_path=qemu_path)
 
             update_toml(dst_conf_path, updated_toml_str)
