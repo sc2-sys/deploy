@@ -25,8 +25,6 @@ from . import sev
 from . import skopeo
 from . import svsm
 
-from tasks.coconut import ns as coconut_ns
-
 ns = Collection(
     base,
     coco,
@@ -53,5 +51,3 @@ ns = Collection(
     skopeo,
     svsm,
 )
-
-ns.add_collection(coconut_ns, name="coconut")

@@ -18,7 +18,7 @@ def do_ovmf_build(nocache=False, push=False):
     ]
     docker_cmd = " ".join(docker_cmd)
     result = run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
-    # assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
 
     if push:
         result = run(f"docker push {OVMF_IMAGE_TAG}", shell=True, capture_output=True)
