@@ -2,6 +2,7 @@ from invoke import task
 from os import environ, makedirs
 from os.path import exists, join
 from subprocess import run
+from sys import exit
 from tasks.containerd import (
     install as containerd_install,
     install_bbolt as bbolt_install,
@@ -218,7 +219,7 @@ def deploy(ctx, debug=False, clean=False):
     if exists(SC2_DEPLOYMENT_FILE):
         print(f"ERROR: SC2 already deployed (file {SC2_DEPLOYMENT_FILE} exists)")
         print("ERROR: only remove deployment file if you know what you are doing!")
-        return
+        exit(1)
 
     # Fail-fast if we are not using the expected host kernel
     host_kernel_version = get_host_kernel_version()
@@ -229,7 +230,7 @@ def deploy(ctx, debug=False, clean=False):
             f"- got {host_kernel_version}"
         )
         print("ERROR: install the right host kernel (./docs/host_kernel.md)")
-        return
+        exit(1)
 
     if clean:
         # Remove all directories that we populate and modify
