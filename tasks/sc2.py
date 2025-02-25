@@ -306,11 +306,28 @@ def deploy(ctx, debug=False, clean=False):
     # Install Knative
     knative_install(debug=debug)
 
+    # Install an up-to-date version of OVMF (the one currently shipped with
+    # CoCo is not enough to run on 6.11 and QEMU 9.1)
     print_dotted_line(f"Installing OVMF (v{OVMF_VERSION})")
     ovmf_install()
     print("Success!")
 
-    # TODO: update SNP classes to use default QEMU
+    # Update SNP class to use default QEMU (we use host kernel 6.11, so we
+    # can use upstream QEMU 9.1)
+    # TODO: remove when bumping to a new CoCo release
+    qemu_path = join(KATA_ROOT, "bin", "qemu-system-x86_64")
+    updated_toml_str = """
+    [hypervisor.qemu]
+    path = "{qemu_path}"
+    valid_hypervisor_paths = [ "{qemu_path}" ]
+    """.format(
+        qemu_path=qemu_path
+    )
+    update_toml(
+        join(KATA_CONFIG_DIR, "configuration-qemu-snp.toml"),
+        updated_toml_str,
+        requires_sudo=True,
+    )
 
     # Apply general patches to the Kata Agent (and initrd)
     replace_kata_agent(

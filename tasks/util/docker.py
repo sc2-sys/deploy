@@ -6,6 +6,7 @@ from tasks.util.versions import (
     KATA_VERSION,
     NYDUS_SNAPSHOTTER_VERSION,
     NYDUS_VERSION,
+    OVMF_VERSION,
 )
 
 
@@ -95,12 +96,13 @@ def build_image_and_run(image_tag, dockerfile, ctr_name, build_args=None):
 
 def pull_artifact_images(debug=False):
     print_dotted_line("Pulling artifact container images")
-    components = ["containerd", "kata-containers", "nydus", "nydus-snapshotter"]
+    components = ["containerd", "kata-containers", "nydus", "nydus-snapshotter", "ovmf"]
     versions = [
         CONTAINERD_VERSION,
         KATA_VERSION,
         NYDUS_VERSION,
         NYDUS_SNAPSHOTTER_VERSION,
+        OVMF_VERSION,
     ]
     for component, version in zip(components, versions):
         docker_cmd = f"docker pull {GHCR_URL}/{GITHUB_ORG}/{component}:{version}"
