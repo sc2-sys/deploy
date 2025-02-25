@@ -29,19 +29,9 @@ def install():
     """
     Copy a custom build of OVMF into the destination path
     """
-    # Copy the debug-built OVMF into the destiantion path
-    tmp_ctr_name = "tmp_ovmf"
-    docker_cmd = "docker run -td --name {} {}".format(tmp_ctr_name, OVMF_IMAGE_TAG)
-    run(docker_cmd, shell=True, check=True)
-
     ctr_paths = ["/git/sc2-sys/edk2/Build/AmdSev/RELEASE_GCC5/FV/OVMF.fd"]
     host_paths = [join(KATA_ROOT, "share", "ovmf", "AMDSEV.fd")]
     copy_from_ctr_image(OVMF_IMAGE_TAG, ctr_paths, host_paths, requires_sudo=True)
-
-
-@task
-def foo(ctx):
-    install()
 
 
 @task

@@ -308,7 +308,7 @@ def deploy(ctx, debug=False, clean=False):
 
     # Install an up-to-date version of OVMF (the one currently shipped with
     # CoCo is not enough to run on 6.11 and QEMU 9.1)
-    print_dotted_line(f"Installing OVMF (v{OVMF_VERSION})")
+    print_dotted_line(f"Installing OVMF ({OVMF_VERSION})")
     ovmf_install()
     print("Success!")
 
