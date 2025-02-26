@@ -57,15 +57,6 @@ jobs:
       - name: "Checkout code"
         uses: actions/checkout@v4
 
-      # Make sure we have the up-to-date version of all images we need as
-      # part of the deployment process
-      - name: "Pull all images"
-        run: |
-          docker pull ghcr.io/sc2-sys/containerd:$(grep -oP 'CONTAINERD_VERSION\s*=\s*"\K[^"]+' ./tasks/util/versions.py)
-          docker pull ghcr.io/sc2-sys/kata-containers:$(grep -oP 'KATA_VERSION\s*=\s*"\K[^"]+' ./tasks/util/versions.py)
-          docker pull ghcr.io/sc2-sys/nydus:$(grep -oP 'NYDUS_VERSION\s*=\s*"\K[^"]+' ./tasks/util/versions.py)
-          docker pull ghcr.io/sc2-sys/nydus-snapshotter:$(grep -oP 'NYDUS_SNAPSHOTTER_VERSION\s*=\s*"\K[^"]+' ./tasks/util/versions.py)
-
       - name: "Install SC2"
         run: ./bin/inv_wrapper.sh sc2.deploy --clean
 
