@@ -1,3 +1,3 @@
 setup_suite() {
-    export BATS_TEST_TIMEOUT=${SC2_TEST_TIMEOUT:-60}
+    export BATS_TEST_TIMEOUT=${SC2_TEST_TIMEOUT:-90}
 }

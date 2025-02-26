@@ -13,6 +13,8 @@ setup() {
 }
 
 teardown() {
+    ${KUBECTL} delete namespace ${SC2_DEMO_NAMESPACE} --ignore-not-found
+
     # Cautionary inter-test sleep
     sleep ${INTERTEST_SLEEP_SECS}
 }

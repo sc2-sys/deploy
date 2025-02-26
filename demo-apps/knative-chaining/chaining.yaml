@@ -18,7 +18,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: chaining-test
+  name: sc2-demo
 ---
 # We need to have as many channels as edges in our workflow DAG. Alternatively,
 # we could enforce edges by using a Broker/Trigger pattern and filtering on
@@ -27,7 +27,7 @@ apiVersion: messaging.knative.dev/v1
 kind: Channel
 metadata:
   name: ingress-to-one
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   channelTemplate:
     apiVersion: messaging.knative.dev/v1
@@ -37,7 +37,7 @@ apiVersion: messaging.knative.dev/v1
 kind: Channel
 metadata:
   name: one-to-two
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   channelTemplate:
     apiVersion: messaging.knative.dev/v1
@@ -47,7 +47,7 @@ apiVersion: messaging.knative.dev/v1
 kind: Channel
 metadata:
   name: two-to-three
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   channelTemplate:
     apiVersion: messaging.knative.dev/v1
@@ -60,7 +60,7 @@ apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
   name: coco-knative-chaining-one
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   template:
     spec:
@@ -86,7 +86,7 @@ apiVersion: sinks.knative.dev/v1alpha1
 kind: JobSink
 metadata:
   name: coco-knative-chaining-two
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   job:
     spec:
@@ -120,7 +120,7 @@ apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
   name: coco-knative-chaining-three
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   template:
     spec:
@@ -144,7 +144,7 @@ apiVersion: messaging.knative.dev/v1
 kind: Subscription
 metadata:
   name: edge-one-subscription
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   channel:
     apiVersion: messaging.knative.dev/v1
@@ -165,7 +165,7 @@ apiVersion: messaging.knative.dev/v1
 kind: Subscription
 metadata:
   name: edge-two-subscription
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   channel:
     apiVersion: messaging.knative.dev/v1
@@ -181,7 +181,7 @@ apiVersion: messaging.knative.dev/v1
 kind: Subscription
 metadata:
   name: edge-three-subscription
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   channel:
     apiVersion: messaging.knative.dev/v1

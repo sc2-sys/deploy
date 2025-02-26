@@ -1,18 +1,20 @@
 #!/usr/bin/env bats
 
+load utils/env.sh
+
 setup_file() {
-    load utils/env.sh
     load utils/helpers.sh
 
     set_snapshotter_mode "host-share"
 }
 
 setup() {
-    load utils/env.sh
     load utils/helpers.sh
 }
 
 teardown() {
+    ${KUBECTL} delete namespace ${SC2_DEMO_NAMESPACE} --ignore-not-found
+
     # Cautionary inter-test sleep
     sleep ${INTERTEST_SLEEP_SECS}
 }

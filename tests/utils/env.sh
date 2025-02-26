@@ -22,7 +22,8 @@ else
 fi
 
 # Useful constants
-INTERTEST_SLEEP_SECS=5
+INTERTEST_SLEEP_SECS=1
+SC2_DEMO_NAMESPACE=sc2-demo
 
 # Images
 PAUSE_IMAGE="registry.k8s.io/pause:3.8"

@@ -1,7 +1,13 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: sc2-demo
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: coco-helloworld-py-node-port
+  namespace: sc2-demo
 spec:
   type: NodePort
   selector:
@@ -16,6 +22,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: coco-helloworld-py
+  namespace: sc2-demo
   labels:
     apps.sc2.io/name: helloworld-py
 spec:

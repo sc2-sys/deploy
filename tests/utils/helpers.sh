@@ -48,14 +48,10 @@ run_knative_chaining() {
     # Curl the channel URL
     ./demo-apps/knative-chaining/curl_cmd.sh
 
-    NAMESPACE="chaining-test"
     POD_LABEL="apps.sc2.io/name=knative-chaining-three"
 
     # Wait for pod 3 to be scaled down
     until [ "$(${KUBECTL} -n ${NAMESPACE} logs -l ${POD_LABEL} | grep 'cloudevent(s3): done!' | wc -l)" = "1" ]; do echo "Waiting for chain to finish..."; sleep 2; done
-
-    # Finally, clear-up
-    ${KUBECTL} delete namespace ${NAMESPACE}
 }
 
 run_knative_hello_world() {
@@ -101,17 +97,17 @@ run_python_hello_world() {
     export POD_LABEL="apps.sc2.io/name=helloworld-py"
 
     # Wait for pod to be ready
-    until [ "$(${KUBECTL} get pods -l ${POD_LABEL} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}')" = "True" ]; do echo "Waiting for pod to be ready..."; sleep 2; done
+    until [ "$(${KUBECTL} get pods -n ${SC2_DEMO_NAMESPACE} -l ${POD_LABEL} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}')" = "True" ]; do echo "Waiting for pod to be ready..."; sleep 2; done
     sleep 1
 
     # Get the pod's IP
-    service_ip=$(${KUBECTL} get services -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}')
+    service_ip=$(${KUBECTL} get services -n ${SC2_DEMO_NAMESPACE} -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}')
     [ "$(curl --retry 3 -X GET ${service_ip}:8080)" = "Hello World!" ]
 
     envsubst < ./demo-apps/helloworld-py/deployment.yaml | ${KUBECTL} delete -f -
 
     # Wait for pod to be deleted
-    ${KUBECTL} wait --for=delete -l ${POD_LABEL} pod --timeout=30s
+    ${KUBECTL} wait --for=delete -n ${SC2_DEMO_NAMESPACE} -l ${POD_LABEL} pod --timeout=30s
 }
 
 run_python_lazy_loading() {

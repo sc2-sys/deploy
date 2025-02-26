@@ -1,7 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sc2-demo
+---
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
   name: helloworld-knative
+  namespace: sc2-demo
 spec:
   template:
     metadata:
