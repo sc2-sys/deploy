@@ -161,7 +161,7 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
     """
     This function takes a directory as input, and generates the root-filesystem
     needed in SC2 at <tmp_rootfs_base_dir>/rootfs. The result can be consumed
-    to pack an `initrd` or a .qcow2 image.
+    to pack an `initrd`
     """
 
     # ----- Prepare temporary rootfs directory -----
@@ -255,7 +255,13 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
         "AGENT_SOURCE_BIN": join(tmp_rootfs_base_dir, "kata-agent"),
         "CONFIDENTIAL_GUEST": "yes",
         "DMVERITY_SUPPORT": "yes",
-        "MEASURED_ROOTFS": "yes",
+        "MEASURED_ROOTFS": "no",
+        # We build the `initrd` inside a container image to prevent different
+        # host OS versions from introducing subtle changes in the rootfs
+        "USE_DOCKER": "yes",
+        "OS_VERSION": "jammy",
+        "RUST_VERSION": "1.75.0",
+        "GO_VERSION": "1.22.2",
         "PAUSE_IMAGE_TARBALL": build_pause_image(
             sc2=sc2, debug=debug, hot_replace=hot_replace
         ),

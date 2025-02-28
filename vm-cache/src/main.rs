@@ -134,15 +134,22 @@ fn read_pid() -> std::io::Result<u32> {
 
 fn stop_background_process() -> std::io::Result<()> {
     if let Ok(pid) = read_pid() {
-        kill(Pid::from_raw(pid as i32), Signal::SIGTERM).map_err(|e| {
-            error!("failed to kill process: {e}");
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "sc2(vm-cache): failed to kill process",
-            )
-        })?;
+        match kill(Pid::from_raw(pid as i32), Signal::SIGTERM) {
+            Ok(_) => {
+                info!("stopped background process with PID {pid}");
+            }
+            Err(nix::errno::Errno::ESRCH) => {
+                info!("process with PID {pid} not found (already stopped?)");
+            }
+            Err(e) => {
+                error!("failed to kill process: {e}");
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "sc2(vm-cache): failed to kill process",
+                ));
+            }
+        }
 
-        info!("stopped background process with PID {pid}");
         std::fs::remove_file(get_pid_file())?;
         std::fs::remove_file(get_log_file())?;
     } else {

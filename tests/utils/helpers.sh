@@ -62,13 +62,15 @@ run_knative_hello_world() {
     sleep 1
 
     # Get the service URL
-    service_url=$(${KUBECTL} get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
+    service_url=$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
     [ "$(curl --retry 3 ${service_url})" = "Hello World!" ]
 
-    # Wait for pod to be deleted
+    # Delete resources in order, as it seems to prevent deletion from being stuck
+    SERVICE_NAME="helloworld-knative"
     POD_LABEL="apps.sc2.io/name=helloworld-py"
-    envsubst < ./demo-apps/helloworld-knative/service.yaml | ${KUBECTL} delete -f -
-    ${KUBECTL} wait --for=delete -l ${POD_LABEL} pod --timeout=60s
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete service.serving.knative.dev ${SERVICE_NAME}
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} wait --for=delete -l ${POD_LABEL} pod --timeout=60s
+    ${KUBECTL} delete namespace ${SC2_DEMO_NAMESPACE}
 }
 
 run_knative_lazy_loading() {
@@ -79,13 +81,15 @@ run_knative_lazy_loading() {
     sleep 1
 
     # Get the service URL
-    service_url=$(${KUBECTL} get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
+    service_url=$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
     [ "$(curl --retry 3 ${service_url})" = "Hello World!" ]
 
-    # Wait for pod to be deleted
+    # Delete resources in order, as it seems to prevent deletion from being stuck
+    SERVICE_NAME="helloworld-knative"
     POD_LABEL="apps.sc2.io/name=helloworld-py"
-    envsubst < ./demo-apps/helloworld-knative-nydus/service.yaml | ${KUBECTL} delete -f -
-    ${KUBECTL} wait --for=delete -l ${POD_LABEL} pod --timeout=60s
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete service.serving.knative.dev ${SERVICE_NAME}
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} wait --for=delete -l ${POD_LABEL} pod --timeout=60s
+    ${KUBECTL} delete namespace ${SC2_DEMO_NAMESPACE}
 }
 
 run_python_hello_world() {
