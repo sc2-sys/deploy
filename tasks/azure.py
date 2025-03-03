@@ -185,9 +185,6 @@ def deploy(ctx):
     )
     run(az_cmd, shell=True, check=True)
 
-
-@task
-def setup(ctx, vm_name="sc2-snp-test"):
     ansible_prepare_inventory(vm_name)
 
     vm_playbook = join(ANSIBLE_ROOT, "vm.yaml")
@@ -220,7 +217,7 @@ def ssh(ctx, name="sc2-snp-test"):
     print("\n--- SSH config ---")
     print(
         """
-# Faasm SGX VM
+# SC2 Azure SNP VM
 Host {}
 HostName {}
 User {}
