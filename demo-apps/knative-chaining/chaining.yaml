@@ -18,7 +18,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: chaining-test
+  name: sc2-demo
 ---
 # We need to have as many channels as edges in our workflow DAG. Alternatively,
 # we could enforce edges by using a Broker/Trigger pattern and filtering on
@@ -27,7 +27,7 @@ apiVersion: messaging.knative.dev/v1
 kind: Channel
 metadata:
   name: ingress-to-one
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   channelTemplate:
     apiVersion: messaging.knative.dev/v1
@@ -37,7 +37,7 @@ apiVersion: messaging.knative.dev/v1
 kind: Channel
 metadata:
   name: one-to-two
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   channelTemplate:
     apiVersion: messaging.knative.dev/v1
@@ -47,7 +47,7 @@ apiVersion: messaging.knative.dev/v1
 kind: Channel
 metadata:
   name: two-to-three
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   channelTemplate:
     apiVersion: messaging.knative.dev/v1
@@ -60,7 +60,7 @@ apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
   name: coco-knative-chaining-one
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   template:
     spec:
@@ -74,6 +74,7 @@ spec:
       labels:
         apps.sc2.io/name: knative-chaining-one
       annotations:
+        io.containerd.cri.runtime-handler: kata-${SC2_RUNTIME_CLASS}
         # NOTE: we may have to enable this annotation in Kata's config file
         # under hypervisor.qemu.enable_annotations (add 'default_memory')
         io.katacontainers.config.hypervisor.default_memory: "6144"
@@ -85,7 +86,7 @@ apiVersion: sinks.knative.dev/v1alpha1
 kind: JobSink
 metadata:
   name: coco-knative-chaining-two
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   job:
     spec:
@@ -108,6 +109,7 @@ spec:
           labels:
             apps.sc2.io/name: knative-chaining-two
           annotations:
+            io.containerd.cri.runtime-handler: kata-${SC2_RUNTIME_CLASS}
             # NOTE: we may have to enable this annotation in Kata's config file
             # under hypervisor.qemu.enable_annotations (add 'default_memory')
             io.katacontainers.config.hypervisor.default_memory: "6144"
@@ -118,7 +120,7 @@ apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
   name: coco-knative-chaining-three
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   template:
     spec:
@@ -133,6 +135,7 @@ spec:
         apps.sc2.io/name: knative-chaining-three
       annotations:
         autoscaling.knative.dev/scale-to-zero-pod-retention-period: "1m"
+        io.containerd.cri.runtime-handler: kata-${SC2_RUNTIME_CLASS}
         # NOTE: we may have to enable this annotation in Kata's config file
         # under hypervisor.qemu.enable_annotations (add 'default_memory')
         io.katacontainers.config.hypervisor.default_memory: "6144"
@@ -141,7 +144,7 @@ apiVersion: messaging.knative.dev/v1
 kind: Subscription
 metadata:
   name: edge-one-subscription
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   channel:
     apiVersion: messaging.knative.dev/v1
@@ -162,7 +165,7 @@ apiVersion: messaging.knative.dev/v1
 kind: Subscription
 metadata:
   name: edge-two-subscription
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   channel:
     apiVersion: messaging.knative.dev/v1
@@ -178,7 +181,7 @@ apiVersion: messaging.knative.dev/v1
 kind: Subscription
 metadata:
   name: edge-three-subscription
-  namespace: chaining-test
+  namespace: sc2-demo
 spec:
   channel:
     apiVersion: messaging.knative.dev/v1

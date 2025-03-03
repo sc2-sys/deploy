@@ -51,11 +51,11 @@ export SC2_RUNTIME_CLASS=qemu-snp-sc2
 
 # Knative demo
 envsubst < ./demo-apps/helloworld-knative/service.yaml | kubectl apply -f -
-curl $(kubectl get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
+curl $(kubectl -n sc2-demo get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
 
 # Non-Knative demo
 envsubst < ./demo-apps/helloworld-py/deployment.yaml | kubectl apply -f -
-curl $(kubectl get services -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}'):8080
+curl $(kubectl -n sc2-demo get services -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}'):8080
 ```
 
 for more complex applications and workloads, please check our [applications](

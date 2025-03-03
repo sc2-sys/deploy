@@ -314,7 +314,8 @@ def deploy(ctx, debug=False, clean=False):
     print("Success!")
 
     # Update SNP class to use default QEMU (we use host kernel 6.11, so we
-    # can use upstream QEMU 9.1)
+    # can use upstream QEMU 9.1). We do this update before generating the SC2
+    # runtime classes, so they will inherit the QEMU value
     # TODO: remove when bumping to a new CoCo release
     qemu_path = join(KATA_ROOT, "bin", "qemu-system-x86_64")
     updated_toml_str = """

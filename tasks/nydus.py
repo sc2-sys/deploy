@@ -2,15 +2,14 @@ from invoke import task
 from os.path import join
 from subprocess import run
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
-from tasks.util.env import COCO_ROOT, GHCR_URL, GITHUB_ORG, PROJ_ROOT, print_dotted_line
-from tasks.util.nydus import NYDUSIFY_PATH
+from tasks.util.env import GHCR_URL, GITHUB_ORG, PROJ_ROOT, print_dotted_line
+from tasks.util.nydus import NYDUS_IMAGE_HOST_PATH, NYDUSIFY_PATH
 from tasks.util.versions import NYDUS_VERSION
 
 NYDUS_CTR_NAME = "nydus-workon"
 NYDUS_IMAGE_TAG = join(GHCR_URL, GITHUB_ORG, "nydus") + f":{NYDUS_VERSION}"
 
 NYDUS_IMAGE_CTR_PATH = "/go/src/github.com/sc2-sys/nydus/target/release/nydus-image"
-NYDUS_IMAGE_HOST_PATH = join(COCO_ROOT, "bin", "nydus-image")
 
 
 @task
