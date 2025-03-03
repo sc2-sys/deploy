@@ -144,10 +144,10 @@ run_python_lazy_loading() {
     export POD_LABEL="apps.sc2.io/name=helloworld-py"
 
     # Wait for pod to be ready
-    until [ "$(${KUBECTL} get pods -l ${POD_LABEL} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}')" = "True" ]; do echo "Waiting for pod to be ready..."; sleep 2; done
+    until [ "$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} get pods -l ${POD_LABEL} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}')" = "True" ]; do echo "Waiting for pod to be ready..."; sleep 2; done
     sleep 1
 
     # Get the pod's IP
-    service_ip=$(${KUBECTL} get services -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}')
+    service_ip=$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} get services -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}')
     [ "$(curl --retry 3 -X GET ${service_ip}:8080)" = "Hello World!" ]
 }
