@@ -28,6 +28,8 @@ snapshotter="host-share"
 # ------------------------------------------------------------------------------
 
 @test "Test python cold starts: runtime=${SC2_RUNTIME_CLASSES[3]} snapshotter=${snapshotter}" {
+    [[ "$SC2_TEE" == "tdx" ]] && skip "#142"
+
     timeout "${SC2_TEST_TIMEOUT}" bash -c '
         source ./tests/utils/helpers.sh
         run_python_hello_world "${SC2_RUNTIME_CLASSES[3]}"
@@ -41,6 +43,8 @@ snapshotter="host-share"
 # ------------------------------------------------------------------------------
 
 @test "Test knative cold starts: runtime=${SC2_RUNTIME_CLASSES[3]} snapshotter=${snapshotter}" {
+    [[ "$SC2_TEE" == "tdx" ]] && skip "#142"
+
     timeout "${SC2_TEST_TIMEOUT}" bash -c '
         source ./tests/utils/helpers.sh
         run_knative_hello_world "${SC2_RUNTIME_CLASSES[3]}"
