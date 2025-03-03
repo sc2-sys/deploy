@@ -91,7 +91,7 @@ pub fn process_event(mut event: Event) -> Event {
 
             // Write the new destination channel
             // FIXME: this is hardcoded in chaining.yaml
-            scaled_event.set_type("http://two-to-three-kn-channel.chaining-test.svc.cluster.local");
+            scaled_event.set_type("http://two-to-three-kn-channel.sc2-demo.svc.cluster.local");
 
             println!("cloudevent(s1): fanning out by a factor of {FAN_OUT_SCALE}");
 

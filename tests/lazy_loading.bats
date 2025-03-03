@@ -1,22 +1,21 @@
 #!/usr/bin/env bats
 
+load utils/env.sh
+
 setup_file() {
-    load utils/env.sh
     load utils/helpers.sh
 
     set_snapshotter_mode "guest-pull"
 }
 
 setup() {
-    load utils/env.sh
     load utils/helpers.sh
 }
 
 teardown() {
-    ${KUBECTL} delete namespace ${SC2_DEMO_NAMESPACE} --ignore-not-found
+    load utils/helpers.sh
 
-    # Cautionary inter-test sleep
-    sleep ${INTERTEST_SLEEP_SECS}
+    common_teardown
 }
 
 snapshotter="guest-pull"

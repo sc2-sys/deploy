@@ -3,7 +3,6 @@
 load utils/env.sh
 
 setup_file() {
-    load utils/env.sh
     load utils/helpers.sh
 
     set_snapshotter_mode "guest-pull"
@@ -11,15 +10,15 @@ setup_file() {
 
 # Make sure we purge before each test so that we have a cold start
 setup() {
-    load utils/env.sh
     load utils/helpers.sh
 
     ${INV} nydus-snapshotter.purge
 }
 
 teardown() {
-    # Cautionary inter-test sleep
-    sleep ${INTERTEST_SLEEP_SECS}
+    load utils/helpers.sh
+
+    common_teardown
 }
 
 snapshotter="guest-pull"

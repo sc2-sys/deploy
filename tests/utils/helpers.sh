@@ -6,6 +6,13 @@ source ./tests/utils/env.sh
 # Helper functions to set-up the environment
 # ------------------------------------------------------------------------------
 
+common_teardown() {
+    ${KUBECTL} delete namespace ${SC2_DEMO_NAMESPACE} --ignore-not-found
+
+    # Cautionary inter-test sleep
+    sleep ${INTERTEST_SLEEP_SECS}
+}
+
 enable_kata_annotation() {
     local annotation="$1"
     local runtime="$2"
@@ -51,7 +58,7 @@ run_knative_chaining() {
     POD_LABEL="apps.sc2.io/name=knative-chaining-three"
 
     # Wait for pod 3 to be scaled down
-    until [ "$(${KUBECTL} -n ${NAMESPACE} logs -l ${POD_LABEL} | grep 'cloudevent(s3): done!' | wc -l)" = "1" ]; do echo "Waiting for chain to finish..."; sleep 2; done
+    until [ "$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} logs -l ${POD_LABEL} | grep 'cloudevent(s3): done!' | wc -l)" = "1" ]; do echo "Waiting for chain to finish..."; sleep 2; done
 }
 
 run_knative_hello_world() {

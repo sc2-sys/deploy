@@ -13,10 +13,9 @@ setup() {
 }
 
 teardown() {
-    ${KUBECTL} delete namespace ${SC2_DEMO_NAMESPACE} --ignore-not-found
+    load utils/helpers.sh
 
-    # Cautionary inter-test sleep
-    sleep ${INTERTEST_SLEEP_SECS}
+    common_teardown
 }
 
 TEST_NAME="Test python hello world"

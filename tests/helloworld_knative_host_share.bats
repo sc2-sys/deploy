@@ -1,20 +1,21 @@
 #!/usr/bin/env bats
 
+load utils/env.sh
+
 setup_file() {
-    load utils/env.sh
     load utils/helpers.sh
 
     set_snapshotter_mode "host-share"
 }
 
 setup() {
-    load utils/env.sh
     load utils/helpers.sh
 }
 
 teardown() {
-    # Cautionary inter-test sleep
-    sleep ${INTERTEST_SLEEP_SECS}
+    load utils/helpers.sh
+
+    common_teardown
 }
 
 TEST_NAME="Test knative hello world"

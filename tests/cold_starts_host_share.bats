@@ -1,7 +1,8 @@
 #!/usr/bin/env bats
 
+load utils/env.sh
+
 setup_file() {
-    load utils/env.sh
     load utils/helpers.sh
 
     set_snapshotter_mode "host-share"
@@ -9,17 +10,15 @@ setup_file() {
 
 # Make sure we purge before each test so that we have a cold start
 setup() {
-    load utils/env.sh
     load utils/helpers.sh
 
     ${INV} nydus-snapshotter.purge
 }
 
 teardown() {
-    ${KUBECTL} delete namespace ${SC2_DEMO_NAMESPACE} --ignore-not-found
+    load utils/helpers.sh
 
-    # Cautionary inter-test sleep
-    sleep ${INTERTEST_SLEEP_SECS}
+    common_teardown
 }
 
 snapshotter="host-share"
