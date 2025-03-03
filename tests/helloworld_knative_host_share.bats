@@ -30,6 +30,12 @@ snapshotter="host-share"
 
 @test "${TEST_NAME}: runtime=${SC2_RUNTIME_CLASSES[3]} snapshotter=${snapshotter}" {
     [[ "$SC2_TEE" == "tdx" ]] && skip "#142"
-    run_python_hello_world "${SC2_RUNTIME_CLASSES[3]}"
+
+    timeout "${SC2_TEST_TIMEOUT}" bash -c '
+        source ./tests/utils/helpers.sh
+        run_knative_hello_world "${SC2_RUNTIME_CLASSES[3]}"
+    '
+
+    cleanup_knative_hello_world
 }
 

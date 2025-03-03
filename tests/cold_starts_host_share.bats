@@ -28,7 +28,12 @@ snapshotter="host-share"
 # ------------------------------------------------------------------------------
 
 @test "Test python cold starts: runtime=${SC2_RUNTIME_CLASSES[3]} snapshotter=${snapshotter}" {
-    run_python_hello_world "${SC2_RUNTIME_CLASSES[3]}"
+    timeout "${SC2_TEST_TIMEOUT}" bash -c '
+        source ./tests/utils/helpers.sh
+        run_python_hello_world "${SC2_RUNTIME_CLASSES[3]}"
+    '
+
+    cleanup_python_hello_world
 }
 
 # ------------------------------------------------------------------------------
@@ -36,5 +41,10 @@ snapshotter="host-share"
 # ------------------------------------------------------------------------------
 
 @test "Test knative cold starts: runtime=${SC2_RUNTIME_CLASSES[3]} snapshotter=${snapshotter}" {
-    run_knative_hello_world "${SC2_RUNTIME_CLASSES[3]}"
+    timeout "${SC2_TEST_TIMEOUT}" bash -c '
+        source ./tests/utils/helpers.sh
+        run_knative_hello_world "${SC2_RUNTIME_CLASSES[3]}"
+    '
+
+    cleanup_knative_hello_world
 }

@@ -26,17 +26,37 @@ snapshotter="guest-pull"
 # ------------------------------------------------------------------------------
 
 @test "${TEST_NAME}: runtime=${SC2_RUNTIME_CLASSES[0]} snapshotter=${snapshotter}" {
-    run_python_hello_world "${SC2_RUNTIME_CLASSES[0]}"
+    timeout "${SC2_TEST_TIMEOUT}" bash -c '
+        source ./tests/utils/helpers.sh
+        run_python_hello_world "${SC2_RUNTIME_CLASSES[0]}"
+    '
+
+    cleanup_python_hello_world
 }
 
 @test "${TEST_NAME}: runtime=${SC2_RUNTIME_CLASSES[1]} snapshotter=${snapshotter}" {
-    run_python_hello_world "${SC2_RUNTIME_CLASSES[1]}"
+    timeout "${SC2_TEST_TIMEOUT}" bash -c '
+        source ./tests/utils/helpers.sh
+        run_python_hello_world "${SC2_RUNTIME_CLASSES[1]}"
+    '
+
+    cleanup_python_hello_world
 }
 
 @test "${TEST_NAME}: runtime=${SC2_RUNTIME_CLASSES[2]} snapshotter=${snapshotter}" {
-    run_python_hello_world "${SC2_RUNTIME_CLASSES[2]}"
+    timeout "${SC2_TEST_TIMEOUT}" bash -c '
+        source ./tests/utils/helpers.sh
+        run_python_hello_world "${SC2_RUNTIME_CLASSES[2]}"
+    '
+
+    cleanup_python_hello_world
 }
 
 @test "${TEST_NAME}: runtime=${SC2_RUNTIME_CLASSES[3]} snapshotter=${snapshotter}" {
-    run_python_hello_world "${SC2_RUNTIME_CLASSES[3]}"
+    timeout "${SC2_TEST_TIMEOUT}" bash -c '
+        source ./tests/utils/helpers.sh
+        run_python_hello_world "${SC2_RUNTIME_CLASSES[3]}"
+    '
+
+    cleanup_python_hello_world
 }

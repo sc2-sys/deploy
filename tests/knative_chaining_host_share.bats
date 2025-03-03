@@ -10,6 +10,9 @@ setup_file() {
 
 setup() {
     load utils/helpers.sh
+
+    # Longer timeout for chaining tests
+    export SC2_TEST_TIMEOUT=120
 }
 
 teardown() {
@@ -34,6 +37,11 @@ snapshotter="host-share"
     enable_kata_annotation "default_memory" "${SC2_RUNTIME_CLASSES[3]}"
     restart_vm_cache
 
-    run_knative_chaining "${SC2_RUNTIME_CLASSES[3]}"
+    timeout "${SC2_TEST_TIMEOUT}" bash -c '
+        source ./tests/utils/helpers.sh
+        run_knative_chaining "${SC2_RUNTIME_CLASSES[3]}"
+    '
+
+    cleanup_knative_chaining
 }
 

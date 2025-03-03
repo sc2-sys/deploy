@@ -10,6 +10,9 @@ setup_file() {
 
 setup() {
     load utils/helpers.sh
+
+    # Longer timeout for chaining tests
+    export SC2_TEST_TIMEOUT=180
 }
 
 teardown() {
@@ -28,24 +31,44 @@ snapshotter="guest-pull"
 @test "${TEST_NAME}: runtime=${SC2_RUNTIME_CLASSES[0]} snapshotter=${snapshotter}" {
     enable_kata_annotation "default_memory" "${SC2_RUNTIME_CLASSES[0]}"
 
-    run_knative_chaining "${SC2_RUNTIME_CLASSES[0]}"
+    timeout "${SC2_TEST_TIMEOUT}" bash -c '
+        source ./tests/utils/helpers.sh
+        run_knative_chaining "${SC2_RUNTIME_CLASSES[0]}"
+    '
+
+    cleanup_knative_chaining
 }
 
 @test "${TEST_NAME}: runtime=${SC2_RUNTIME_CLASSES[1]} snapshotter=${snapshotter}" {
     enable_kata_annotation "default_memory" "${SC2_RUNTIME_CLASSES[1]}"
 
-    run_knative_chaining "${SC2_RUNTIME_CLASSES[1]}"
+    timeout "${SC2_TEST_TIMEOUT}" bash -c '
+        source ./tests/utils/helpers.sh
+        run_knative_chaining "${SC2_RUNTIME_CLASSES[1]}"
+    '
+
+    cleanup_knative_chaining
 }
 
 @test "${TEST_NAME}: runtime=${SC2_RUNTIME_CLASSES[2]} snapshotter=${snapshotter}" {
     enable_kata_annotation "default_memory" "${SC2_RUNTIME_CLASSES[2]}"
 
-    run_knative_chaining "${SC2_RUNTIME_CLASSES[2]}"
+    timeout "${SC2_TEST_TIMEOUT}" bash -c '
+        source ./tests/utils/helpers.sh
+        run_knative_chaining "${SC2_RUNTIME_CLASSES[2]}"
+    '
+
+    cleanup_knative_chaining
 }
 
 @test "${TEST_NAME}: runtime=${SC2_RUNTIME_CLASSES[3]} snapshotter=${snapshotter}" {
     enable_kata_annotation "default_memory" "${SC2_RUNTIME_CLASSES[3]}"
     restart_vm_cache
 
-    run_knative_chaining "${SC2_RUNTIME_CLASSES[3]}"
+    timeout "${SC2_TEST_TIMEOUT}" bash -c '
+        source ./tests/utils/helpers.sh
+        run_knative_chaining "${SC2_RUNTIME_CLASSES[3]}"
+    '
+
+    cleanup_knative_chaining
 }

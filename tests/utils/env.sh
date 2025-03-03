@@ -24,6 +24,7 @@ fi
 # Useful constants
 INTERTEST_SLEEP_SECS=1
 SC2_DEMO_NAMESPACE=sc2-demo
+SC2_TEST_TIMEOUT=60
 
 # Images
 PAUSE_IMAGE="registry.k8s.io/pause:3.8"

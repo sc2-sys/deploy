@@ -42,6 +42,39 @@ set_snapshotter_mode() {
 }
 
 # ------------------------------------------------------------------------------
+# Helper functions clean-up after executions
+# ------------------------------------------------------------------------------
+
+cleanup_knative_chaining() {
+    # Curl service
+    kubectl -n sc2-demo delete -l run=curl pod
+
+    # First service: fan-out
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete service.serving.knative.dev coco-knative-chaining-one
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete -l apps.sc2.io/name=knative-chaining-one pod
+
+    # Second service: job sink
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete JobSink.sinks.knative.dev coco-knative-chaining-two
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete -l apps.sc2.io/name=knative-chaining-two pod
+
+    # Third service: fan-in
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete service.serving.knative.dev coco-knative-chaining-three
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete -l apps.sc2.io/name=knative-chaining-three pod
+}
+
+cleanup_knative_hello_world() {
+    # Delete resources in order, as it seems to prevent deletion from being stuck
+    SERVICE_NAME="helloworld-knative"
+    POD_LABEL="apps.sc2.io/name=helloworld-py"
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete service.serving.knative.dev ${SERVICE_NAME}
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete -l ${POD_LABEL} pod
+}
+
+cleanup_python_hello_world() {
+    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete deployment coco-helloworld-py
+}
+
+# ------------------------------------------------------------------------------
 # Helper functions to run specific workloads
 # ------------------------------------------------------------------------------
 
@@ -58,7 +91,7 @@ run_knative_chaining() {
     POD_LABEL="apps.sc2.io/name=knative-chaining-three"
 
     # Wait for pod 3 to be scaled down
-    until [ "$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} logs -l ${POD_LABEL} | grep 'cloudevent(s3): done!' | wc -l)" = "1" ]; do echo "Waiting for chain to finish..."; sleep 2; done
+    until [ "$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} logs -l ${POD_LABEL} | grep 'cloudevent(s3): done!' | wc -l)" = "1" ]; do echo "Waiting for chain to finish..." ; sleep 2; done
 }
 
 run_knative_hello_world() {
@@ -71,13 +104,6 @@ run_knative_hello_world() {
     # Get the service URL
     service_url=$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
     [ "$(curl --retry 3 ${service_url})" = "Hello World!" ]
-
-    # Delete resources in order, as it seems to prevent deletion from being stuck
-    SERVICE_NAME="helloworld-knative"
-    POD_LABEL="apps.sc2.io/name=helloworld-py"
-    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete service.serving.knative.dev ${SERVICE_NAME}
-    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} wait --for=delete -l ${POD_LABEL} pod --timeout=60s
-    ${KUBECTL} delete namespace ${SC2_DEMO_NAMESPACE}
 }
 
 run_knative_lazy_loading() {
@@ -90,13 +116,6 @@ run_knative_lazy_loading() {
     # Get the service URL
     service_url=$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
     [ "$(curl --retry 3 ${service_url})" = "Hello World!" ]
-
-    # Delete resources in order, as it seems to prevent deletion from being stuck
-    SERVICE_NAME="helloworld-knative"
-    POD_LABEL="apps.sc2.io/name=helloworld-py"
-    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} delete service.serving.knative.dev ${SERVICE_NAME}
-    ${KUBECTL} -n ${SC2_DEMO_NAMESPACE} wait --for=delete -l ${POD_LABEL} pod --timeout=60s
-    ${KUBECTL} delete namespace ${SC2_DEMO_NAMESPACE}
 }
 
 run_python_hello_world() {
@@ -114,11 +133,6 @@ run_python_hello_world() {
     # Get the pod's IP
     service_ip=$(${KUBECTL} get services -n ${SC2_DEMO_NAMESPACE} -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}')
     [ "$(curl --retry 3 -X GET ${service_ip}:8080)" = "Hello World!" ]
-
-    envsubst < ./demo-apps/helloworld-py/deployment.yaml | ${KUBECTL} delete -f -
-
-    # Wait for pod to be deleted
-    ${KUBECTL} wait --for=delete -n ${SC2_DEMO_NAMESPACE} -l ${POD_LABEL} pod --timeout=30s
 }
 
 run_python_lazy_loading() {
@@ -136,9 +150,4 @@ run_python_lazy_loading() {
     # Get the pod's IP
     service_ip=$(${KUBECTL} get services -o jsonpath='{.items[?(@.metadata.name=="coco-helloworld-py-node-port")].spec.clusterIP}')
     [ "$(curl --retry 3 -X GET ${service_ip}:8080)" = "Hello World!" ]
-
-    envsubst < ./demo-apps/helloworld-py-nydus/deployment.yaml | ${KUBECTL} delete -f -
-
-    # Wait for pod to be deleted
-    ${KUBECTL} wait --for=delete -l ${POD_LABEL} pod --timeout=30s
 }
