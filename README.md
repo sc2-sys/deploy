@@ -72,14 +72,14 @@ inv sc2.destroy [--debug]
 ## Further Reading
 
 For further documentation, you may want to check these other documents:
-* [Attestation](./docs/attestation.md) - instructions to set-up remote attestation in SC2.
+* [Attestation](./docs/attestation.md) - instructions to set-up remote attestation in SC2. TODO: remove me?
 * [CoCo Upgrade](./docs/upgrade_coco.md) - upgrade the current CoCo version.
 * [Guest Components](./docs/guest_components.md) - instructions to patch components inside SC2 guests.
 * [Host Kernel](./docs/host_kernel.md) - bump the kernel version in the host.
 * [Image Pull](./docs/image_pull.md) - details on the image-pulling mechanisms supported in SC2.
 * [K8s](./docs/k8s.md) - documentation about configuring a single-node Kubernetes cluster.
 * [Kata](./docs/kata.md) - instructions to build our custom Kata fork and `initrd` images.
-* [Key Broker Service](./docs/kbs.md) - docs on using and patching the KBS.
+* [Trustee](./docs/kbs.md) - attestation and secret delivery components. TODO: update
 * [Knative](./docs/knative.md) - documentation about Knative, our serverless runtime of choice.
 * [Local Registry](./docs/registry.md) - configuring a local registry to store OCI images.
 * [OVMF](./docs/ovmf.md) - notes on building OVMF and CoCo's OVMF boot process.

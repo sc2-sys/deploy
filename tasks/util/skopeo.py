@@ -9,7 +9,7 @@ from tasks.util.guest_components import (
     start_coco_keyprovider,
     stop_coco_keyprovider,
 )
-from tasks.util.kbs import create_kbs_secret
+from tasks.util.trustee import create_kbs_secret
 from tasks.util.versions import SKOPEO_VERSION
 
 SKOPEO_IMAGE = "quay.io/skopeo/stable:v{}".format(SKOPEO_VERSION)

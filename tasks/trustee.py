@@ -1,9 +1,12 @@
 from invoke import task
 from os.path import exists, join
+from shutil import rmtree
 from subprocess import run
 from tasks.util.env import GHCR_URL, GITHUB_ORG
-from tasks.util.kbs import (
-    SIMPLE_KBS_DIR,
+from tasks.util.trustee import (
+    KBS_CONFIG_DIR,
+    KBS_HOST_PORT,
+    TRUSTEE_DIR,
     SIGNATURE_POLICY_NONE,
     clear_kbs_db,
     get_kbs_db_ip,
@@ -11,19 +14,17 @@ from tasks.util.kbs import (
 )
 
 SIMPLE_KBS_SERVER_IMAGE_NAME = join(GHCR_URL, GITHUB_ORG, "simple-kbs-server:latest")
-COMPOSE_ENV = {"SIMPLE_KBS_IMAGE": SIMPLE_KBS_SERVER_IMAGE_NAME}
+TRUSTEE_COMPOSE_ENV = {"KBS_HOST_PORT": KBS_HOST_PORT}
 
 
-def check_kbs_dir():
-    if not exists(SIMPLE_KBS_DIR):
-        print("Error: could not find local KBS checkout at {}".format(SIMPLE_KBS_DIR))
-        print(
-            "Have you initialized the git submodules?"
-            "Run: git submodule update --init"
-        )
-        raise RuntimeError("Simple KBS local checkout not found!")
+def check_trustee_dir():
+    # TODO: think about how to deploy the trustee
+    if not exists(TRUSTEE_DIR):
+        print(f"ERROR: could not find local Trustee checkout at {TRUSTEE_DIR}")
+        exit(1)
 
-    target_dir = join(SIMPLE_KBS_DIR, "target")
+    """
+    target_dir = join(TRUSTEE_DIR, "target")
     if not exists(target_dir):
         print("Populating {} with the pre-compiled binaries...".format(target_dir))
         tmp_ctr_name = "simple-kbs-workon"
@@ -38,95 +39,61 @@ def check_kbs_dir():
         run(cp_cmd, shell=True, check=True)
 
         run("docker rm -f {}".format(tmp_ctr_name), shell=True, check=True)
+    """
+
+
+def do_start(debug=False, clean=False):
+    check_trustee_dir()
+
+    if clean and exists(KBS_CONFIG_DIR):
+        rmtree(KBS_CONFIG_DIR)
+
+    # First, generate a priave key for the kbs
+    priv_key = join(KBS_CONFIG_DIR, "private.key")
+    pub_key = join(KBS_CONFIG_DIR, "public.pub")
+    openssl_cmd = f"openssl genpkey -algorithm ed25519 > {priv_key}"
+    result = run(openssl_cmd, shell=True, capture_output=True)
+    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+    if debug:
+        print(result.stdout.decode("utf-8").strip())
+
+    openssl_cmd = f"openssl pkey -in {priv_key} -pubout -out {pub_key}"
+    result = run(openssl_cmd, shell=True, capture_output=True)
+    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+    if debug:
+        print(result.stdout.decode("utf-8").strip())
+
+    # Now just start the trustee services
+    result = run("docker compose up -d", shell=True, capture_output=True, cwd=TRUSTEE_DIR, env=TRUSTEE_COMPOSE_ENV)
+    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+    if debug:
+        print(result.stdout.decode("utf-8").strip())
 
 
 @task
-def build(ctx, push=False):
-    """
-    Build the simple-kbs image
-    """
-    docker_cmd = "docker build -t {} -f {} {}".format(
-        SIMPLE_KBS_SERVER_IMAGE_NAME,
-        join(SIMPLE_KBS_DIR, "Dockerfile.simple-kbs"),
-        SIMPLE_KBS_DIR,
-    )
-
-    run(docker_cmd, shell=True, check=True)
-
-    if push:
-        run(
-            "docker push {}".format(SIMPLE_KBS_SERVER_IMAGE_NAME),
-            shell=True,
-            check=True,
-        )
-
-
-@task
-def cli(ctx):
-    """
-    Get a development CLI in the simple KBS server
-    """
-    # Make sure the KBS is running
-    check_kbs_dir()
-    run(
-        "docker compose up -d --no-recreate cli",
-        shell=True,
-        check=True,
-        cwd=SIMPLE_KBS_DIR,
-        env=COMPOSE_ENV,
-    )
-    run(
-        "docker compose exec -it cli bash",
-        shell=True,
-        check=True,
-        cwd=SIMPLE_KBS_DIR,
-        env=COMPOSE_ENV,
-    )
-
-
-@task
-def restart(ctx):
+def start(ctx, debug=False, clean=False):
     """
     Start the simple KBS service
     """
-    check_kbs_dir()
-    run(
-        "docker compose restart server",
-        shell=True,
-        check=True,
-        cwd=SIMPLE_KBS_DIR,
-        env=COMPOSE_ENV,
-    )
+    do_start(debug=debug, clean=clean)
 
 
 @task
-def start(ctx):
-    """
-    Start the simple KBS service
-    """
-    check_kbs_dir()
-    run(
-        "docker compose up -d server",
-        shell=True,
-        check=True,
-        cwd=SIMPLE_KBS_DIR,
-        env=COMPOSE_ENV,
-    )
-
-
-@task
-def stop(ctx):
+def stop(ctx, debug=False):
     """
     Stop the simple KBS service
     """
-    check_kbs_dir()
-    run(
+    check_trustee_dir()
+    result = run(
         "docker compose down",
         shell=True,
-        check=True,
-        cwd=SIMPLE_KBS_DIR,
-        env=COMPOSE_ENV,
+        capture_output=True,
+        cwd=TRUSTEE_DIR,
+        env=TRUSTEE_COMPOSE_ENV,
     )
+    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+    if debug:
+        print(result.stdout.decode("utf-8").strip())
 
 
 @task
