@@ -48,7 +48,7 @@ from tasks.util.kata import (
     replace_agent as replace_kata_agent,
     replace_shim as replace_kata_shim,
 )
-from tasks.util.kernel import get_host_kernel_expected_version, get_host_kernel_version
+from tasks.util.kernel import get_host_kernel_expected_prefix, get_host_kernel_version
 from tasks.util.kubeadm import run_kubectl_command
 from tasks.util.registry import (
     HOST_CERT_DIR,
@@ -223,10 +223,10 @@ def deploy(ctx, debug=False, clean=False):
 
     # Fail-fast if we are not using the expected host kernel
     host_kernel_version = get_host_kernel_version()
-    host_kernel_expected_version = get_host_kernel_expected_version()
-    if host_kernel_version != host_kernel_expected_version:
+    host_kernel_expected_prefix = get_host_kernel_expected_prefix()
+    if not host_kernel_version.startswith(host_kernel_expected_prefix):
         print(
-            f"ERROR: wrong host kernel: expected {host_kernel_expected_version} "
+            f"ERROR: wrong host kernel: expected prefix {host_kernel_expected_prefix} "
             f"- got {host_kernel_version}"
         )
         print("ERROR: install the right host kernel (./docs/host_kernel.md)")

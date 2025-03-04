@@ -3,7 +3,7 @@ from subprocess import run
 from tasks.util.versions import HOST_KERNEL_VERSION_SNP, HOST_KERNEL_VERSION_TDX
 
 
-def get_host_kernel_expected_version():
+def get_host_kernel_expected_prefix():
     sc2_runtime_class = environ["SC2_RUNTIME_CLASS"]
     if "snp" in sc2_runtime_class:
         return HOST_KERNEL_VERSION_SNP
