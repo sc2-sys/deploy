@@ -1,5 +1,5 @@
 from invoke import task
-from os.path import basename, exists, join
+from os.path import exists, join
 from subprocess import run
 from tasks.util.docker import copy_from_ctr_image
 from tasks.util.env import GHCR_URL, GITHUB_ORG, PROJ_ROOT, SC2_ROOT
@@ -44,6 +44,11 @@ def do_build_initrd(clean=False):
     # normally build initrd's for SC2 in Kata. Whenever we incorportate the
     # SVSM into SC2, we will have to converge this method with the regular
     # initrd preparation for SC2.
+    sudo_cmd = "sudo DEBIAN_FRONTEND=noninteractive apt install -y dracut"
+    out = run(sudo_cmd, shell=True, capture_output=True)
+    assert out.returncode == 0, "Error installing deps: {}".format(
+        out.stderr.decode("utf-8")
+    )
 
     # Prepare our rootfs with the kata agent and co.
     initrd_base_dir = "/tmp/svsm_initrd_base_dir"
@@ -126,8 +131,12 @@ def do_build_kernel(nocache=False):
     with open(tmp_file, "w") as fh:
         fh.write("\n".join(kernel_config) + "\n")
 
+    # FIXME: it looks like some host kernel configs result in guest kernels
+    # that panic when booting the SVSM. For the time being, the config in
+    # milan2 seems to work, whereas the one in milan1 does not. The diff
+    # gives many differences, we should address this as part of #148.
     build_args = {
-        "KERNEL_CONFIG_FILE": basename(tmp_file),
+        "KERNEL_CONFIG_FILE": "config-milan2",  # basename(tmp_file),
         "MODULES_OUTDIR": join(SVSM_ROOT, "share", "linux", "modules"),
     }
     build_args_str = [
@@ -138,7 +147,6 @@ def do_build_kernel(nocache=False):
     docker_cmd = "docker build{} {} -t {} -f {} /tmp".format(
         " --no-cache" if nocache else "",
         build_args_str,
-        # f"{tmp_file}:/tmp/kernel_config",
         SVSM_KERNEL_IMAGE_TAG,
         join(PROJ_ROOT, "docker", "svsm_kernel.dockerfile"),
     )
@@ -165,6 +173,23 @@ def do_build_qemu(nocache=False):
     run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
 
 
+def do_install_qemu(debug, clean):
+    """
+    Install QEMU and OVMF
+    """
+    ctr_paths = [
+        join(SVSM_ROOT, "bin", "qemu-system-x86_64"),
+        join(SVSM_QEMU_DATA_DIR, "qemu"),
+        "/git/coconut-svsm/edk2/Build/OvmfX64/RELEASE_GCC5/FV/OVMF.fd",
+    ]
+    host_paths = [
+        join(SVSM_ROOT, "bin", "qemu-system-x86_64"),
+        join(SVSM_QEMU_DATA_DIR, "qemu"),
+        join(SVSM_ROOT, "share", "ovmf", "OVMF.fd"),
+    ]
+    copy_from_ctr_image(SVSM_QEMU_IMAGE_TAG, ctr_paths, host_paths, requires_sudo=True)
+
+
 def do_install(debug, clean):
     if clean and exists(SVSM_ROOT):
         result = run(f"sudo rm -rf {SVSM_ROOT}", shell=True, capture_output=True)
@@ -180,18 +205,7 @@ def do_install(debug, clean):
         requires_sudo=True,
     )
 
-    # Install QEMU and OVMF
-    ctr_paths = [
-        join(SVSM_ROOT, "bin", "qemu-system-x86_64"),
-        join(SVSM_QEMU_DATA_DIR, "qemu"),
-        "/git/coconut-svsm/edk2/Build/OvmfX64/RELEASE_GCC5/FV/OVMF.fd",
-    ]
-    host_paths = [
-        join(SVSM_ROOT, "bin", "qemu-system-x86_64"),
-        join(SVSM_QEMU_DATA_DIR, "qemu"),
-        join(SVSM_ROOT, "share", "ovmf", "OVMF.fd"),
-    ]
-    copy_from_ctr_image(SVSM_QEMU_IMAGE_TAG, ctr_paths, host_paths, requires_sudo=True)
+    do_install_qemu(debug, clean)
 
     # Prepare the guest's initrd
     do_build_initrd(clean=clean)
@@ -239,6 +253,8 @@ def build_qemu(ctx, nocache=False, push=False):
 
 @task
 def build_svsm(ctx, nocache=False):
+    do_install_qemu(debug=False, clean=False)
+
     build_args = {
         "OVMF_FILE": "OVMF.fd",
     }

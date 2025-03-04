@@ -22,7 +22,8 @@ RUN mkdir -p ${CODE_DIR} \
         ${CODE_DIR}
 
 # Copy generated config file. The filename and path are hardcoded in ./tasks/svsm.py
-COPY ./svsm_kernel_config ${CODE_DIR}/.config
+ARG KERNEL_CONFIG_FILE
+COPY ./${KERNEL_CONFIG_FILE} ${CODE_DIR}/.config
 
 ARG MODULES_OUTDIR
 RUN cd ${CODE_DIR} \
