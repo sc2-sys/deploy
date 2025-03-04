@@ -6,17 +6,27 @@ from pymysql import connect as mysql_connect
 from pymysql.cursors import DictCursor
 from subprocess import run
 from tasks.util.cosign import COSIGN_PUB_KEY
-from tasks.util.env import COMPONENTS_DIR
+from tasks.util.env import PROJ_ROOT
 from tasks.util.sev import get_launch_digest
 
-SIMPLE_KBS_DIR = join(COMPONENTS_DIR, "simple-kbs")
+# TODO: think about this, where does it make sense to have the trustee?
+# TODO: probably the less bad solution is to have it as a submodule?
+TRUSTEE_DIR = join(PROJ_ROOT, "..", "trustee")
 # WARNING: this resource path depends on the KBS' `server` service working
 # directory. The server expects the `resources` directory to be in:
 # /<working_dir>/resources
-SIMPLE_KBS_RESOURCE_PATH = join(SIMPLE_KBS_DIR, "resources")
+SIMPLE_KBS_RESOURCE_PATH = join(TRUSTEE_DIR, "resources")
 SIMPLE_KBS_KEYS_RESOURCE_PATH = join(SIMPLE_KBS_RESOURCE_PATH, "keys")
 
 DEFAULT_LAUNCH_POLICY_ID = 10
+
+# ------------------------------------------------------------------------------
+# Key Broker Service
+# ------------------------------------------------------------------------------
+
+KBS_ROOT = join(TRUSTEE_DIR, "kbs")
+KBS_CONFIG_DIR = join(KBS_ROOT, "config")
+KBS_HOST_PORT = "50002"
 
 # --------
 # Signature Verification Policy
