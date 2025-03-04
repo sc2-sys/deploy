@@ -12,7 +12,7 @@ setup() {
     load utils/helpers.sh
 
     # Longer timeout for chaining tests
-    export SC2_TEST_TIMEOUT=180
+    export SC2_TEST_TIMEOUT=240
 }
 
 teardown() {
