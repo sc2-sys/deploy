@@ -1,6 +1,7 @@
 from os import makedirs
 from os.path import exists, join
 from subprocess import CalledProcessError, run
+from tasks.util.containerd import wait_for_containerd_socket
 from tasks.util.docker import is_ctr_running
 from tasks.util.env import (
     CONF_FILES_DIR,
@@ -38,6 +39,8 @@ def start(debug=False, clean=False):
     # ----------
     # Docker Registry Config
     # ----------
+
+    wait_for_containerd_socket()
 
     if clean and is_ctr_running(REGISTRY_CTR_NAME):
         if debug:
