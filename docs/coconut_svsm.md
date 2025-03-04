@@ -10,7 +10,15 @@ QEMU, and OVMF.
 
 ## Quick Start
 
-After installing SC2, you can run:
+After installing SC2, you can build the different components with:
+
+```bash
+inv svsm.build-guest-kernel
+inv svsm.build-qemu
+inv svsm.build-svsm
+```
+
+then install all the built components with:
 
 ```bash
 inv svsm.install [--clean]

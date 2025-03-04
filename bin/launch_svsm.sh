@@ -7,7 +7,7 @@ CBIT_POS=51
 
 IGVM=${SVSM_ROOT}/share/igvm/coconut-qemu.igvm
 KERNEL=${SVSM_ROOT}/share/sc2/vmlinuz-kata-containers-sc2
-INITRD=/opt/sc2/svsm/share/sc2/initrd-kata.img
+INITRD=${SVSM_ROOT}/share/sc2/initrd-kata.img
 
 # Ensure terminal settings are restored on exit
 orig_stty=$(stty -g)
