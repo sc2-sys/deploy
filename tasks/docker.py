@@ -1,6 +1,7 @@
 from invoke import task
 from os.path import join
 from tasks.svsm import build_svsm_image, build_svsm_kernel_image, build_svsm_qemu_image
+from tasks.trustee import build_trustee_image
 from tasks.util.containerd import build_containerd_image
 from tasks.util.docker import BASE_IMAGE_TAG, build_image
 from tasks.util.env import PROJ_ROOT, print_dotted_line
@@ -79,4 +80,8 @@ def build_all(ctx, nocache=False, push=False):
     # This must be after SVSM's qemu and kernel
     print_dotted_line("Building SVSM IGVM image")
     build_svsm_image(nocache, push, debug=False)
+    print("Success!")
+
+    print_dotted_line("Building trustee image")
+    build_trustee_image(nocache, push, debug=False)
     print("Success!")

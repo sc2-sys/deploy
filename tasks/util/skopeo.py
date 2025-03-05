@@ -9,7 +9,8 @@ from tasks.util.guest_components import (
     start_coco_keyprovider,
     stop_coco_keyprovider,
 )
-from tasks.util.trustee import create_kbs_secret
+
+# from tasks.util.trustee import create_kbs_secret
 from tasks.util.versions import SKOPEO_VERSION
 
 SKOPEO_IMAGE = "quay.io/skopeo/stable:v{}".format(SKOPEO_VERSION)
@@ -104,7 +105,8 @@ def encrypt_container_image(image_tag, sign=False):
     # encryption key is already there. Thus it is safe to ignore this exception
     # here
     try:
-        create_kbs_secret(encryption_key_resource_id, key_b64)
+        print("foo")
+        # create_kbs_secret(encryption_key_resource_id, key_b64)
     except IntegrityError:
         print("WARNING: error creating KBS secret...")
         pass

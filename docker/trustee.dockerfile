@@ -1,16 +1,14 @@
-FROM ghcr.io/sc2-sys/base:0.10.0
+FROM ghcr.io/sc2-sys/base:0.12.0
 
 # ---------------------------
 # Common APT dependencies
 # ---------------------------
 
-RUN apt update && \
-    apt install -y gpg \
-    && curl -fsSL https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | \
+RUN curl -fsSL https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | \
         gpg --dearmor | tee /usr/share/keyrings/intel-sgx-archive-keyring.gpg > /dev/null \
     # TODO: update to noble
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-sgx-archive-keyring.gpg] \
-        https://download.01.org/intel-sgx/sgx_repo/ubuntu jammy main" | \
+        https://download.01.org/intel-sgx/sgx_repo/ubuntu noble main" | \
         tee /etc/apt/sources.list.d/intel-sgx.list \
     && apt update
 
@@ -28,15 +26,42 @@ RUN apt install -y \
 # Trustee source set-up
 # ---------------------------
 
-ARG CODE_DIR=/go/src/github.com/sc2-sys/trustee
+ARG CODE_DIR=/git/sc2-sys/trustee
 RUN mkdir -p ${CODE_DIR} \
     && git clone\
         -b sc2-main \
         https://github.com/sc2-sys/trustee.git \
         ${CODE_DIR} \
     && git config --global --add safe.directory ${CODE_DIR}
-WORKDIR ${CODE_DIR}
 
 # ---------------------------
 # Build KBS
 # ---------------------------
+
+RUN cd ${CODE_DIR}/kbs \
+    && openssl genpkey -algorithm ed25519 > config/private.key \
+    && openssl pkey -in config/private.key -pubout -out config/public.pub \
+    && make AS_FEATURE=coco-as-grpc
+
+# ---------------------------
+# Build AS
+# ---------------------------
+
+RUN cd ${CODE_DIR}/attestation-service \
+    && make VERIFIER=all-verifier
+
+# ---------------------------
+# Build RVPS
+# ---------------------------
+
+RUN cd ${CODE_DIR}/rvps \
+    && make build
+
+# ---------------------------
+# Build KBC
+# ---------------------------
+
+RUN cd ${CODE_DIR}/tools/kbc-client \
+    && cargo build --release
+
+WORKDIR ${CODE_DIR}

@@ -36,12 +36,12 @@ spec:
         apps.sc2.io/name: attestation
       annotations:
         io.containerd.cri.runtime-handler: kata-${SC2_RUNTIME_CLASS}
-        io.katacontainers.config.hypervisor.kernel_params: "${SC2_KERNEL_PARAMS}"
+        # io.katacontainers.config.hypervisor.kernel_params: "${SC2_KERNEL_PARAMS}"
     spec:
       runtimeClassName: kata-${SC2_RUNTIME_CLASS}
       containers:
       - name: attestation
-        image: sc2cr.io/applications/helloworld-py:unencrypted
+        image: sc2cr.io/applications/helloworld-py:signed
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
