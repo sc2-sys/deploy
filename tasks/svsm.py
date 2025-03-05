@@ -85,7 +85,7 @@ def build_svsm_image(nocache, push, debug=True):
     build_image(
         SVSM_IMAGE_TAG,
         join(PROJ_ROOT, "docker", "svsm.dockerfile"),
-        build_args={"OVMF_FILE", "OVMF.fd"},
+        build_args={"OVMF_FILE": "OVMF.fd"},
         cwd=join(SVSM_ROOT, "share", "ovmf"),
         nocache=nocache,
         push=push,
