@@ -1,7 +1,6 @@
 from invoke import Collection
 
 from . import containerd
-from . import cosign
 from . import demo_apps
 from . import docker
 from . import format_code
@@ -26,7 +25,6 @@ from . import trustee
 
 ns = Collection(
     containerd,
-    cosign,
     demo_apps,
     docker,
     format_code,
