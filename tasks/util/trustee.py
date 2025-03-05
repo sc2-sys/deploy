@@ -4,9 +4,11 @@ from os import makedirs
 from os.path import join
 from pymysql import connect as mysql_connect
 from pymysql.cursors import DictCursor
+from re import search as re_search, sub as re_sub
 from subprocess import run
 from tasks.util.cosign import COSIGN_PUB_KEY
-from tasks.util.env import PROJ_ROOT
+from tasks.util.env import KATA_CONFIG_DIR, PROJ_ROOT, get_node_url
+from tasks.util.toml import read_value_from_toml, update_toml
 from tasks.util.sev import get_launch_digest
 
 # TODO: think about this, where does it make sense to have the trustee?
@@ -27,6 +29,91 @@ DEFAULT_LAUNCH_POLICY_ID = 10
 KBS_ROOT = join(TRUSTEE_DIR, "kbs")
 KBS_CONFIG_DIR = join(KBS_ROOT, "config")
 KBS_HOST_PORT = "50002"
+
+
+def get_kbs_ip():
+    """
+    Get the IP where the KBS is deployed. Note that this IP must be reachable
+    from the guest, so it cannot be localhost even if Trustee is deployed
+    locally.
+    """
+    # TODO: change when we support deploying the KBS remotely, elsewhere
+    return get_node_url()
+
+
+# ------------------------------------------------------------------------------
+# Guest Attestation
+# ------------------------------------------------------------------------------
+
+
+def get_trustee_kernel_parameters(kernel_params, mode):
+    kbs_ip = get_kbs_ip()
+
+    # Regex patterns for the key-value pairs
+    guest_api_pattern = r"\bagent\.guest_components_rest_api=resource\b"
+    aa_kbc_pattern = r"\bagent\.aa_kbc_params=cc_kbc::http:\/\/[^ ]+:\d+\b"
+
+    # Add/remove the kernel parameters from the given white-separated key=val
+    # string, without modifying other parameters
+    if mode == "off":
+        # Remove the key-value pairs if they exist
+        kernel_params = re_sub(guest_api_pattern, "", kernel_params)
+        kernel_params = re_sub(aa_kbc_pattern, "", kernel_params)
+    else:
+        # Add the key-value pairs with the specified IP if they are missing
+        if not re_search(guest_api_pattern, kernel_params):
+            kernel_params += " agent.guest_components_rest_api=resource"
+        if not re_search(aa_kbc_pattern, kernel_params):
+            kernel_params += (
+                f" agent.aa_kbc_params=cc_kbc::http://{kbs_ip}:{KBS_HOST_PORT}"
+            )
+
+    kernel_params = re_sub(r"\s+", " ", kernel_params).strip()
+    return kernel_params
+
+
+def do_set_guest_attestation_mode(mode, runtime):
+    """
+    This method toggles the guest attestation feature. If enabled, after
+    booting and before pulling the container image, the attestation agent in
+    the guest will send its attestation report to Trustee, which will apply
+    the attestation policy.
+
+    Note that this can also be set by adding an annotation to the pod:
+    io.katacontainers.config.hypervisor.kernel_params:
+      "agent.guest_components_rest_api=resource
+       agent.aa_kbc_params=cc_kbc::http://{trustee_kbs_ip}:{trustee_kbs_port}"
+    """
+    supported_modes = ["on", "off"]
+    if mode not in supported_modes:
+        print(f"ERROR: unsupported guest attestation mode: {mode}")
+        print(f"ERROR: must be one in : {supported_modes}")
+        exit(1)
+
+    conf_file_path = join(KATA_CONFIG_DIR, f"configuration-{runtime}.toml")
+    kernel_params = read_value_from_toml(
+        conf_file_path, "hypervisor.qemu.kernel_params"
+    )
+    updated_kernel_params = get_trustee_kernel_parameters(kernel_params, mode)
+
+    updated_toml_str = """
+    [hypervisor.qemu]
+    kernel_params = "{updated_kernel_params}"
+    """.format(
+        updated_kernel_params=updated_kernel_params
+    )
+    update_toml(conf_file_path, updated_toml_str)
+
+
+# ------------------------------------------------------------------------------
+# Image Signature and Encryption
+# ------------------------------------------------------------------------------
+
+# TODO
+
+# ------------------------------------------------------------------------------
+# Legacy Code
+# ------------------------------------------------------------------------------
 
 # --------
 # Signature Verification Policy

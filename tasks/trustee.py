@@ -2,19 +2,23 @@ from invoke import task
 from os.path import exists, join
 from shutil import rmtree
 from subprocess import run
-from tasks.util.env import GHCR_URL, GITHUB_ORG
+from tasks.util.env import GHCR_URL, GITHUB_ORG, PROJ_ROOT
 from tasks.util.trustee import (
     KBS_CONFIG_DIR,
     KBS_HOST_PORT,
     TRUSTEE_DIR,
     SIGNATURE_POLICY_NONE,
     clear_kbs_db,
+    do_set_guest_attestation_mode,
     get_kbs_db_ip,
     provision_launch_digest as do_provision_launch_digest,
 )
 
+# TODO: delete me
 SIMPLE_KBS_SERVER_IMAGE_NAME = join(GHCR_URL, GITHUB_ORG, "simple-kbs-server:latest")
+
 TRUSTEE_COMPOSE_ENV = {"KBS_HOST_PORT": KBS_HOST_PORT}
+TRUSTEE_IMAGE_TAG = join(GHCR_URL, GITHUB_ORG, "trustee:main")
 
 
 def check_trustee_dir():
@@ -64,10 +68,32 @@ def do_start(debug=False, clean=False):
         print(result.stdout.decode("utf-8").strip())
 
     # Now just start the trustee services
-    result = run("docker compose up -d", shell=True, capture_output=True, cwd=TRUSTEE_DIR, env=TRUSTEE_COMPOSE_ENV)
+    result = run(
+        "docker compose up -d",
+        shell=True,
+        capture_output=True,
+        cwd=TRUSTEE_DIR,
+        env=TRUSTEE_COMPOSE_ENV,
+    )
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
     if debug:
         print(result.stdout.decode("utf-8").strip())
+
+
+@task
+def build(ctx, nocache=False, push=False):
+    """
+    Build the Trustee fork for SC2
+    """
+    docker_cmd = "docker build{} -t {} -f {} .".format(
+        " --no-cache" if nocache else "",
+        TRUSTEE_IMAGE_TAG,
+        join(PROJ_ROOT, "docker", "trustee.dockerfile"),
+    )
+    run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
+
+    if push:
+        run(f"docker push {TRUSTEE_IMAGE_TAG}", shell=True, check=True)
 
 
 @task
@@ -94,6 +120,21 @@ def stop(ctx, debug=False):
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
     if debug:
         print(result.stdout.decode("utf-8").strip())
+
+
+@task
+def set_guest_attestation_mode(ctx, mode, runtime="qemu-snp-sc2"):
+    """
+    Set guest attestation mode: [on,off]
+
+    This can also be set using a pod annotation.
+    """
+    do_set_guest_attestation_mode(mode, runtime)
+
+
+# ------------------------------------------------------------------------------
+# Legacy Tasks
+# ------------------------------------------------------------------------------
 
 
 @task
