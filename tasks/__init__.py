@@ -1,6 +1,5 @@
 from invoke import Collection
 
-from . import coco
 from . import containerd
 from . import cosign
 from . import demo_apps
@@ -26,7 +25,6 @@ from . import svsm
 from . import trustee
 
 ns = Collection(
-    coco,
     containerd,
     cosign,
     demo_apps,

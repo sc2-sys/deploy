@@ -8,6 +8,13 @@ use std::{
 const SCRIPT_NAME: &str = "sc2-deploy(check-fork-hashes)";
 
 fn get_version_from_file(version_str: &str) -> Result<String, String> {
+    // Fast-path for untagged forked dependencies (i.e. tagged with main) like
+    // trustee or the SVSM, in which case we compare our branch, `sc2-main`
+    // with the container with tag `main`
+    if version_str == "main" {
+        return Ok("main")
+    }
+
     // Work-out the versions file path from the binary's real path
     let mut file_path =
         std::env::current_exe().expect("sc2-deploy: failed to get current exe path");
@@ -117,6 +124,17 @@ fn main() {
             dict.insert(
                 "ctr_src_paths",
                 "/go/src/github.com/sc2-sys/nydus-snapshotter",
+            );
+            dict.insert("branches", "sc2-main");
+            dict
+        },
+        {
+            let mut dict = HashMap::new();
+            dict.insert("repo_name", "trustee");
+            dict.insert("version_str", "main");
+            dict.insert(
+                "ctr_src_paths",
+                "/go/src/github.com/sc2-sys/trustee",
             );
             dict.insert("branches", "sc2-main");
             dict
