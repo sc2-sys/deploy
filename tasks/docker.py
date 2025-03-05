@@ -64,7 +64,7 @@ def build_all(ctx, nocache=False, push=False):
     build_nydus_snapshotter_image(nocache, push, debug=False)
     print("Success!")
 
-    print_dotted_line(f"Building OVMF image (v{OVMF_VERSION})")
+    print_dotted_line(f"Building OVMF image ({OVMF_VERSION})")
     build_ovmf_image(nocache, push, debug=False)
     print("Success!")
 
