@@ -1,4 +1,4 @@
-FROM ghcr.io/sc2-sys/base:0.10.0
+FROM ghcr.io/sc2-sys/base:0.12.0
 
 # ---------------------------
 # Nydus daemon set-up
@@ -13,6 +13,7 @@ RUN mkdir -p ${CODE_DIR} \
         ${CODE_DIR} \
     && git config --global --add safe.directory ${CODE_DIR} \
     && cd ${CODE_DIR} \
+    && rustup toolchain install 1.75.0-x86_64-unknown-linux-gnu \
     && DOCKER=false GOPROXY=https://proxy.golang.org make all-release
 
 WORKDIR ${CODE_DIR}

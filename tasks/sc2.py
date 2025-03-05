@@ -412,7 +412,7 @@ def destroy(ctx, debug=False):
 @task
 def set_log_level(ctx, log_level):
     """
-    Set log level for all SC2 containers: containerd, kata, and nydus-snapshotter
+    Set log level for all SC2 containers: 'info' or 'debug'
     """
     allowed_log_levels = ["info", "debug"]
     if log_level not in allowed_log_levels:

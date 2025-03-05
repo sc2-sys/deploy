@@ -1,11 +1,10 @@
-FROM ghcr.io/sc2-sys/base:0.10.0
+FROM ghcr.io/sc2-sys/base:0.12.0
 
 RUN apt update \
     && apt upgrade -y \
     && apt install -y \
         autoconf \
         autoconf-archive \
-        libclang-dev \
         libssl-dev \
         pkg-config
 

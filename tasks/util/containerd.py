@@ -1,42 +1,24 @@
 from json import loads as json_loads
-from os.path import exists
+from os.path import exists, join
 from subprocess import CalledProcessError, run
+from tasks.util.docker import build_image
+from tasks.util.env import GHCR_URL, GITHUB_ORG, PROJ_ROOT
+from tasks.util.versions import CONTAINERD_VERSION
 from time import sleep, time
 
+CONTAINERD_IMAGE_TAG = (
+    join(GHCR_URL, GITHUB_ORG, "containerd") + f":{CONTAINERD_VERSION}"
+)
 
-def wait_for_containerd_socket():
-    timeout = 10
-    interval = 1
-    socket_path = "/run/containerd/containerd.sock"
 
-    # Socket is root-owned, so we need to be careful when probing it
-    socket_test_script = f"""
-import socket
-try:
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
-        s.connect('{socket_path}')
-except Exception as e:
-    exit(1)
-exit(0)
-"""
-
-    start_time = time()
-    while time() - start_time < timeout:
-        if exists(socket_path):
-            try:
-                run(
-                    f'sudo python3 -c "{socket_test_script}"',
-                    shell=True,
-                    check=True,
-                )
-
-                return
-            except CalledProcessError:
-                pass
-
-        sleep(interval)
-
-    raise RuntimeError("Error dialing containerd socket!")
+def build_containerd_image(nocache, push, debug=True):
+    build_image(
+        CONTAINERD_IMAGE_TAG,
+        join(PROJ_ROOT, "docker", "containerd.dockerfile"),
+        nocache=nocache,
+        push=push,
+        debug=debug,
+    )
 
 
 def is_containerd_active():
@@ -248,3 +230,37 @@ def get_all_events_in_between(
             events_json.append(o_json)
 
     return events_json
+
+
+def wait_for_containerd_socket():
+    timeout = 10
+    interval = 1
+    socket_path = "/run/containerd/containerd.sock"
+
+    # Socket is root-owned, so we need to be careful when probing it
+    socket_test_script = f"""
+import socket
+try:
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+        s.connect('{socket_path}')
+except Exception as e:
+    exit(1)
+exit(0)
+"""
+    start_time = time()
+    while time() - start_time < timeout:
+        if exists(socket_path):
+            try:
+                run(
+                    f'sudo python3 -c "{socket_test_script}"',
+                    shell=True,
+                    check=True,
+                )
+
+                return
+            except CalledProcessError:
+                pass
+
+        sleep(interval)
+
+    raise RuntimeError("Error dialing containerd socket!")

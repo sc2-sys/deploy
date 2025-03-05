@@ -129,6 +129,9 @@ def hot_replace_guest(ctx, debug=False):
 
 @task
 def install_host_kernel_from_upstream(ctx):
+    """
+    Install host kernel from a stable release
+    """
     # TODO: find a way to automate the grepping of deb files and kernel name
     kernel_ver = "6.13"
     kernel_name = f"{kernel_ver}.0-061300-generic"

@@ -1,7 +1,7 @@
 from invoke import task
 from os.path import exists, join
 from subprocess import run
-from tasks.util.docker import copy_from_ctr_image
+from tasks.util.docker import build_image, copy_from_ctr_image
 from tasks.util.env import GHCR_URL, GITHUB_ORG, PROJ_ROOT, SC2_ROOT
 from tasks.util.kata import KATA_AGENT_SOURCE_DIR, KATA_IMAGE_TAG, KATA_SOURCE_DIR
 from tasks.util.kernel import get_host_kernel_version
@@ -15,22 +15,6 @@ SVSM_ROOT = join(SC2_ROOT, "svsm")
 SVSM_QEMU_DATA_DIR = join(SVSM_ROOT, "share")
 
 SVSM_GUEST_INITRD = join(SVSM_ROOT, "share", "sc2", "initrd-kata.img")
-
-
-def get_kernel_version_from_ctr_image():
-    tmp_file = "/tmp/sc2_kernel_release"
-    copy_from_ctr_image(
-        SVSM_KERNEL_IMAGE_TAG,
-        ["/git/coconut-svsm/linux/include/config/kernel.release"],
-        [tmp_file],
-    )
-    with open(tmp_file, "r") as fh:
-        kernel_version = fh.read().strip()
-    kernel_version_trimmed = (
-        kernel_version if not kernel_version.endswith("+") else kernel_version[:-1]
-    )
-
-    return kernel_version, kernel_version_trimmed
 
 
 def do_build_initrd(clean=False):
@@ -95,7 +79,21 @@ def do_build_initrd(clean=False):
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
 
 
-def do_build_kernel(nocache=False):
+def build_svsm_image(nocache, push, debug=True):
+    do_install_qemu(debug=False, clean=False)
+
+    build_image(
+        SVSM_IMAGE_TAG,
+        join(PROJ_ROOT, "docker", "svsm.dockerfile"),
+        build_args={"OVMF_FILE": "OVMF.fd"},
+        cwd=join(SVSM_ROOT, "share", "ovmf"),
+        nocache=nocache,
+        push=push,
+        debug=debug,
+    )
+
+
+def build_svsm_kernel_image(nocache, push, debug=True):
     """
     This method builds the forked kernel needed in the SVSM. It is used for
     the __guest__ kernel only.
@@ -135,42 +133,33 @@ def do_build_kernel(nocache=False):
     # that panic when booting the SVSM. For the time being, the config in
     # milan2 seems to work, whereas the one in milan1 does not. The diff
     # gives many differences, we should address this as part of #148.
-    build_args = {
-        "KERNEL_CONFIG_FILE": "config-milan2",  # basename(tmp_file),
-        "MODULES_OUTDIR": join(SVSM_ROOT, "share", "linux", "modules"),
-    }
-    build_args_str = [
-        "--build-arg {}={}".format(key, build_args[key]) for key in build_args
-    ]
-    build_args_str = " ".join(build_args_str)
-
-    docker_cmd = "docker build{} {} -t {} -f {} /tmp".format(
-        " --no-cache" if nocache else "",
-        build_args_str,
+    build_image(
         SVSM_KERNEL_IMAGE_TAG,
         join(PROJ_ROOT, "docker", "svsm_kernel.dockerfile"),
+        build_args={
+            "KERNEL_CONFIG_FILE": "config-milan2",  # basename(tmp_file),
+            "MODULES_OUTDIR": join(SVSM_ROOT, "share", "linux", "modules"),
+        },
+        cwd="/tmp",
+        nocache=nocache,
+        push=push,
+        debug=debug,
     )
-    run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
 
 
-def do_build_qemu(nocache=False):
-    build_args = {
-        "IGVM_VERSION": IGVM_VERSION,
-        "QEMU_DATADIR": SVSM_QEMU_DATA_DIR,
-        "QEMU_PREFIX": SVSM_ROOT,
-    }
-    build_args_str = [
-        "--build-arg {}={}".format(key, build_args[key]) for key in build_args
-    ]
-    build_args_str = " ".join(build_args_str)
-
-    docker_cmd = "docker build{} {} -t {} -f {} .".format(
-        " --no-cache" if nocache else "",
-        build_args_str,
+def build_svsm_qemu_image(nocache, push, debug=True):
+    build_image(
         SVSM_QEMU_IMAGE_TAG,
         join(PROJ_ROOT, "docker", "svsm_qemu.dockerfile"),
+        build_args={
+            "IGVM_VERSION": IGVM_VERSION,
+            "QEMU_DATADIR": SVSM_QEMU_DATA_DIR,
+            "QEMU_PREFIX": SVSM_ROOT,
+        },
+        nocache=nocache,
+        push=push,
+        debug=debug,
     )
-    run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
 
 
 def do_install_qemu(debug, clean):
@@ -219,6 +208,22 @@ def do_install(debug, clean):
     )
 
 
+def get_kernel_version_from_ctr_image():
+    tmp_file = "/tmp/sc2_kernel_release"
+    copy_from_ctr_image(
+        SVSM_KERNEL_IMAGE_TAG,
+        ["/git/coconut-svsm/linux/include/config/kernel.release"],
+        [tmp_file],
+    )
+    with open(tmp_file, "r") as fh:
+        kernel_version = fh.read().strip()
+    kernel_version_trimmed = (
+        kernel_version if not kernel_version.endswith("+") else kernel_version[:-1]
+    )
+
+    return kernel_version, kernel_version_trimmed
+
+
 # ------------------------------------------------------------------------------
 # Entry-point tasks
 # ------------------------------------------------------------------------------
@@ -229,13 +234,13 @@ def build_guest_kernel(ctx, nocache=False, push=False):
     """
     Build the host/guest kernel fork to use with the SVSM
     """
-    do_build_kernel(nocache=nocache)
+    build_svsm_kernel_image(nocache=nocache, push=push)
 
 
 @task
 def build_initrd(ctx, clean=False):
     """
-    Generate an initrd with the kata agent and the different kernel modules.
+    Generate an initrd with the kata agent and the different kernel modules
     """
     do_build_initrd(clean=clean)
 
@@ -245,32 +250,15 @@ def build_qemu(ctx, nocache=False, push=False):
     """
     Build the QEMU fork for its use with the SVSM
     """
-    do_build_qemu(nocache=nocache)
-
-    if push:
-        run(f"docker push {SVSM_QEMU_IMAGE_TAG}", shell=True, check=True)
+    build_svsm_qemu_image(nocache, push)
 
 
 @task
-def build_svsm(ctx, nocache=False):
-    do_install_qemu(debug=False, clean=False)
-
-    build_args = {
-        "OVMF_FILE": "OVMF.fd",
-    }
-    build_args_str = [
-        "--build-arg {}={}".format(key, build_args[key]) for key in build_args
-    ]
-    build_args_str = " ".join(build_args_str)
-
-    docker_cmd = "docker build{} {} -t {} -f {} {}".format(
-        " --no-cache" if nocache else "",
-        build_args_str,
-        SVSM_IMAGE_TAG,
-        join(PROJ_ROOT, "docker", "svsm.dockerfile"),
-        join(SVSM_ROOT, "share", "ovmf"),
-    )
-    run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
+def build_svsm(ctx, nocache=False, push=False):
+    """
+    Build the SVSM IGVM image
+    """
+    build_svsm_image(nocache, push)
 
 
 @task

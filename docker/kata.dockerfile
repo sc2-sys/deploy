@@ -1,4 +1,4 @@
-FROM ghcr.io/sc2-sys/base:0.10.0
+FROM ghcr.io/sc2-sys/base:0.12.0
 
 # ---------------------------
 # Kata Containers source set-up
@@ -7,8 +7,7 @@ FROM ghcr.io/sc2-sys/base:0.10.0
 # Install APT dependencies
 RUN apt install -y \
         libseccomp-dev \
-        musl-tools \
-        wget
+        musl-tools
 
 # ---------------------------
 # Build Kata

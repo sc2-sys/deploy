@@ -1,4 +1,4 @@
-FROM ghcr.io/sc2-sys/base:0.10.0
+FROM ghcr.io/sc2-sys/base:0.12.0
 
 # ---------------------------
 # Nydus snapshotter daemon set-up

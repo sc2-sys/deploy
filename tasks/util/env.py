@@ -1,6 +1,6 @@
 from os.path import dirname, expanduser, realpath, join
 from subprocess import run
-from tasks.util.versions import KATA_VERSION, PAUSE_IMAGE_VERSION
+from tasks.util.versions import PAUSE_IMAGE_VERSION
 
 PROJ_ROOT = dirname(dirname(dirname(realpath(__file__))))
 
@@ -37,14 +37,7 @@ GITHUB_ORG = "sc2-sys"
 KUBEADM_KUBECONFIG_FILE = join(K8S_CONFIG_DIR, "kubeadm_kubeconfig")
 
 # CoCo config
-
 COCO_ROOT = join("/opt", "confidential-containers")
-
-# Base software image (note that we tag with a CoCo release version, but we
-# allow it to fall behind as we should not re-build the base image often)
-BASE_IMAGE_TAG = join(GHCR_URL, GITHUB_ORG, "base") + ":0.10.0"
-
-# Kata Version is determined by CoCo version
 KATA_ROOT = join("/opt", "kata")
 
 # ---------- Kata config ----------
@@ -52,7 +45,6 @@ KATA_ROOT = join("/opt", "kata")
 KATA_CONFIG_DIR = join(KATA_ROOT, "share", "defaults", "kata-containers")
 KATA_IMG_DIR = join(KATA_ROOT, "share", "kata-containers")
 KATA_WORKON_CTR_NAME = "kata-workon"
-KATA_IMAGE_TAG = join(GHCR_URL, GITHUB_ORG, "kata-containers") + f":{KATA_VERSION}"
 KATA_RUNTIMES = ["qemu-coco-dev", "qemu-snp", "qemu-tdx"]
 
 # ---------- SC2 config ----------
