@@ -3,6 +3,8 @@ from os import stat
 from os.path import join
 from subprocess import run
 from tasks.util.containerd import (
+    CONTAINERD_IMAGE_TAG,
+    build_containerd_image,
     is_containerd_active,
     restart_containerd,
     wait_for_containerd_socket,
@@ -13,8 +15,6 @@ from tasks.util.env import (
     CONF_FILES_DIR,
     CONTAINERD_CONFIG_FILE,
     CONTAINERD_CONFIG_ROOT,
-    GHCR_URL,
-    GITHUB_ORG,
     PROJ_ROOT,
     print_dotted_line,
 )
@@ -23,9 +23,6 @@ from tasks.util.versions import CONTAINERD_VERSION, GO_VERSION
 from time import sleep
 
 CONTAINERD_CTR_NAME = "containerd-workon"
-CONTAINERD_IMAGE_TAG = (
-    join(GHCR_URL, GITHUB_ORG, "containerd") + f":{CONTAINERD_VERSION}"
-)
 
 CONTAINERD_BINARY_NAMES = [
     "containerd",
@@ -37,24 +34,12 @@ CONTAINERD_CTR_BINPATH = "/go/src/github.com/sc2-sys/containerd/bin"
 CONTAINERD_HOST_BINPATH = "/usr/bin"
 
 
-def do_build(nocache=False):
-    docker_cmd = "docker build{} -t {} -f {} .".format(
-        " --no-cache" if nocache else "",
-        CONTAINERD_IMAGE_TAG,
-        join(PROJ_ROOT, "docker", "containerd.dockerfile"),
-    )
-    run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
-
-
 @task
 def build(ctx, nocache=False, push=False):
     """
-    Build the containerd fork for CoCo
+    Build the containerd fork for SC2
     """
-    do_build(nocache=nocache)
-
-    if push:
-        run(f"docker push {CONTAINERD_IMAGE_TAG}", shell=True, check=True)
+    build_containerd_image(nocache=nocache, push=push)
 
 
 @task

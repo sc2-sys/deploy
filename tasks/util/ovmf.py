@@ -1,10 +1,26 @@
 from re import search as re_search
+from os.path import join
+from tasks.util.env import GHCR_URL, GITHUB_ORG, PROJ_ROOT
+from tasks.util.docker import build_image
+from tasks.util.versions import OVMF_VERSION
 
 
+OVMF_IMAGE_TAG = join(GHCR_URL, GITHUB_ORG, f"ovmf:{OVMF_VERSION}")
 # This is hard-coded in the bash redirection output. It is not very straight
 # forward to change it there, so we keep it like this for the time being
 # (e.g. we could template the bash script, but I cba atm)
 OVMF_SERIAL_OUTPUT = "/tmp/qemu-serial.log"
+
+
+def build_ovmf_image(nocache, push, debug=True):
+    build_image(
+        OVMF_IMAGE_TAG,
+        join(PROJ_ROOT, "docker", "ovmf.dockerfile"),
+        build_args={"OVMF_VERSION", OVMF_VERSION},
+        nocache=nocache,
+        push=push,
+        debug=debug,
+    )
 
 
 def get_ovmf_boot_events(events_ts, guest_kernel_start_ts):

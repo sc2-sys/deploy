@@ -1,4 +1,4 @@
-from os.path import dirname, exists
+from os.path import dirname, exists, join
 from subprocess import run
 from tasks.util.env import GHCR_URL, GITHUB_ORG, PROJ_ROOT, print_dotted_line
 from tasks.util.versions import (
@@ -9,19 +9,54 @@ from tasks.util.versions import (
     OVMF_VERSION,
 )
 
+# Base software image (note that we tag with a CoCo release version, but we
+# allow it to fall behind as we should not re-build the base image often)
+BASE_IMAGE_TAG = join(GHCR_URL, GITHUB_ORG, "base") + ":0.12.0"
 
-def is_ctr_running(ctr_name):
-    """
-    Work out whether a container is running or not
-    """
-    docker_cmd = ["docker container inspect", "-f '{{.State.Running}}'", ctr_name]
-    docker_cmd = " ".join(docker_cmd)
-    out = run(docker_cmd, shell=True, capture_output=True)
-    if out.returncode == 0:
-        value = out.stdout.decode("utf-8").strip()
-        return value == "true"
+ALL_CTR_IMAGES = [
+    (join(GHCR_URL, GITHUB_ORG, f"kata-containers:{KATA_VERSION}"), "kata.dockerfile"),
+    (join(GHCR_URL, GITHUB_ORG, f"nydus:{NYDUS_VERSION}"), "nydus.dockerfile"),
+    (
+        join(GHCR_URL, GITHUB_ORG, f"nydus-snapshotter:{NYDUS_SNAPSHOTTER_VERSION}"),
+        "nydus_snapshotter.dockerfile",
+    ),
+    (join(GHCR_URL, GITHUB_ORG, f"ovmf:{OVMF_VERSION}"), "ovmf.dockerfile"),
+    (join(GHCR_URL, GITHUB_ORG, "svsm:main"), "svsm.dockerfile"),
+    # (join(GHCR_URL, GITHUB_ORG, "linux:svsm"), "svsm_kernel.dockerfile"),
+    (join(GHCR_URL, GITHUB_ORG, "qemu:svsm"), "svsm_qemu.dockerfile"),
+]
 
-    return False
+
+def build_image(
+    image_tag,
+    dockerfile,
+    build_args=None,
+    cwd=PROJ_ROOT,
+    nocache=False,
+    push=False,
+    debug=False,
+):
+    build_args_cmd = ""
+    if build_args:
+        build_args_cmd = " ".join(
+            [
+                "--build-arg {}={}".format(key, value)
+                for key, value in build_args.items()
+            ]
+        )
+    docker_cmd = "docker build {} {} -t {} -f {} .".format(
+        "--no-cache" if nocache else "", build_args_cmd, image_tag, dockerfile
+    )
+    result = run(docker_cmd, shell=True, capture_output=True, cwd=cwd)
+    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+    if debug:
+        print(result.stdout.decode("utf-8").strip())
+
+    if push:
+        result = run(f"docker push {image_tag}", shell=True, capture_output=True)
+        assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+        if debug:
+            print(result.stdout.decode("utf-8").strip())
 
 
 def copy_from_ctr_image(ctr_image, ctr_paths, host_paths, requires_sudo=False):
@@ -64,34 +99,18 @@ def copy_from_ctr_image(ctr_image, ctr_paths, host_paths, requires_sudo=False):
     cleanup()
 
 
-def build_image(image_tag, dockerfile, build_args=None):
-    build_args_cmd = ""
-    if build_args:
-        build_args_cmd = " ".join(
-            [
-                "--build-arg {}={}".format(key, value)
-                for key, value in build_args.items()
-            ]
-        )
-    docker_cmd = "docker build {} -t {} -f {} .".format(
-        build_args_cmd, image_tag, dockerfile
-    )
-    run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
+def is_ctr_running(ctr_name):
+    """
+    Work out whether a container is running or not
+    """
+    docker_cmd = ["docker container inspect", "-f '{{.State.Running}}'", ctr_name]
+    docker_cmd = " ".join(docker_cmd)
+    out = run(docker_cmd, shell=True, capture_output=True)
+    if out.returncode == 0:
+        value = out.stdout.decode("utf-8").strip()
+        return value == "true"
 
-
-def run_container(image_tag, ctr_name):
-    docker_cmd = "docker run -td --name {} {}".format(ctr_name, image_tag)
-    run(docker_cmd, shell=True, check=True)
-
-
-def stop_container(ctr_name):
-    docker_cmd = "docker rm -f {}".format(ctr_name)
-    run(docker_cmd, shell=True, check=True)
-
-
-def build_image_and_run(image_tag, dockerfile, ctr_name, build_args=None):
-    build_image(image_tag, dockerfile, build_args)
-    run_container(image_tag, ctr_name)
+    return False
 
 
 def pull_artifact_images(debug=False):

@@ -1,5 +1,5 @@
-FROM csegarragonz/dotfiles:0.2.0 AS dotfiles
-FROM ubuntu:22.04
+FROM csegarragonz/dotfiles:0.3.0 AS dotfiles
+FROM ubuntu:24.04
 
 # ---------------------------
 # Work. Env. Set-Up (do this first to benefit from caching)
@@ -15,6 +15,7 @@ RUN apt update \
         g++ \
         gcc \
         git \
+        gpg \
         gopls \
         libclang-dev \
         libdevmapper-dev \

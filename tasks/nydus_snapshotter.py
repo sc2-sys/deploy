@@ -10,13 +10,15 @@ from tasks.util.env import (
     COCO_ROOT,
     CONTAINERD_CONFIG_FILE,
     CONTAINERD_CONFIG_ROOT,
-    GHCR_URL,
-    GITHUB_ORG,
     KATA_RUNTIMES,
     LOCAL_REGISTRY_URL,
     PROJ_ROOT,
     SC2_RUNTIMES,
     print_dotted_line,
+)
+from tasks.util.nydus_snapshotter import (
+    NYDUS_SNAPSHOTTER_IMAGE_TAG,
+    build_nydus_snapshotter_image,
 )
 from tasks.util.toml import read_value_from_toml, update_toml
 from tasks.util.versions import NYDUS_SNAPSHOTTER_VERSION
@@ -38,9 +40,6 @@ NYDUS_SNAPSHOTTER_CONFIG_FILES = [
     NYDUS_SNAPSHOTTER_HOST_SHARE_CONFIG,
 ]
 NYDUS_SNAPSHOTTER_CTR_NAME = "nydus-snapshotter-workon"
-NYDUS_SNAPSHOTTER_IMAGE_TAG = (
-    join(GHCR_URL, GITHUB_ORG, "nydus-snapshotter") + f":{NYDUS_SNAPSHOTTER_VERSION}"
-)
 
 NYDUS_SNAPSHOTTER_BINARY_NAMES = [
     "containerd-nydus-grpc",
@@ -51,76 +50,6 @@ NYDUS_SNAPSHOTTER_HOST_BINPATH = "/opt/confidential-containers/bin"
 
 # You can see all options to configure the  nydus-snapshotter here:
 # https://github.com/containerd/nydus-snapshotter/blob/main/misc/snapshotter/config.toml
-
-
-def restart_nydus_snapshotter():
-    run("sudo service nydus-snapshotter restart", shell=True, check=True)
-
-
-def wait_for_snapshot_metadata_to_be_gced(snapshotter, debug=False):
-    """
-    After restarting containerd it may take a while for the GC to kick in and
-    delete the metadata corresponding to previous snapshots. This metadata
-    is stored in a Bolt DB in /var/lib/containerd/io.containerd.metadata.v1.bolt/meta.db
-
-    Annoyingly, it is hard to manually delete files from the database w/out
-    writting a small Go script. Instead, we rely on the bbolt CLI tool to
-    poll the DB until the GC has done its job.
-    """
-    bbolt_path = join(BIN_DIR, "bbolt")
-    db_path = "/var/lib/containerd/io.containerd.metadata.v1.bolt/meta.db"
-    tmp_db_path = "/tmp/containerd_meta_copy.db"
-    bbolt_cmd = f"{bbolt_path} keys {tmp_db_path} v1 k8s.io snapshots {snapshotter}"
-
-    while True:
-        # Make a user-owned copy of the DB (bbolt complains otherwise)
-        run(f"sudo cp {db_path} {tmp_db_path}", shell=True, check=True)
-        run(
-            "sudo chown {}:{} {}".format(getuid(), getgid(), tmp_db_path),
-            shell=True,
-            check=True,
-        )
-
-        result = run(bbolt_cmd, shell=True, capture_output=True)
-        stdout = result.stdout.decode("utf-8").strip()
-
-        if result.returncode == 1:
-            # This can be a benign error if the snapshotter has not been used
-            # at all, never
-            if stdout == "bucket not found":
-                if debug:
-                    print(f"WARNING: bucket {snapshotter} not found in metadata")
-                    run(f"rm {tmp_db_path}", shell=True, check=True)
-                return
-            else:
-                print(
-                    "ERROR: running bbolt command: stdout: {}, stderr: {}".format(
-                        stdout, result.stderr.decode("utf-8").strip()
-                    )
-                )
-                run(f"rm {tmp_db_path}", shell=True, check=True)
-
-                raise RuntimeError("Error running bbolt command!")
-        elif result.returncode == 0:
-            if len(stdout) == 0:
-                run(f"rm {tmp_db_path}", shell=True, check=True)
-                return
-
-            print(
-                "Got {} snapshot's metadata for snapshotter: {}".format(
-                    len(stdout.split("\n")), snapshotter
-                )
-            )
-            sleep(2)
-        else:
-            print(
-                "ERROR: running bbolt command: stdout: {}, stderr: {}".format(
-                    stdout, result.stderr.decode("utf-8").strip()
-                )
-            )
-            run(f"rm {tmp_db_path}", shell=True, check=True)
-
-            raise RuntimeError("Error running bbolt command!")
 
 
 def do_purge(debug=False):
@@ -199,15 +128,6 @@ def do_purge(debug=False):
     # metadata database
     for snap in [NYDUS_SNAPSHOTTER_HOST_SHARE_NAME, NYDUS_SNAPSHOTTER_GUEST_PULL_NAME]:
         wait_for_snapshot_metadata_to_be_gced(snap, debug=debug)
-
-
-@task
-def purge(ctx):
-    """
-    Remove all cached snapshots in the snapshotter cache
-    """
-    wait_for_containerd_socket()
-    do_purge(debug=True)
 
 
 def install(debug=False, clean=False):
@@ -315,20 +235,8 @@ EOF'
     print("Success!")
 
 
-@task
-def build(ctx, nocache=False, push=False):
-    """
-    Build the nydus-snapshotter image
-    """
-    docker_cmd = "docker build {} -t {} -f {} .".format(
-        "--no-cache" if nocache else "",
-        NYDUS_SNAPSHOTTER_IMAGE_TAG,
-        join(PROJ_ROOT, "docker", "nydus_snapshotter.dockerfile"),
-    )
-    run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
-
-    if push:
-        run(f"docker push {NYDUS_SNAPSHOTTER_IMAGE_TAG}", shell=True, check=True)
+def restart_nydus_snapshotter():
+    run("sudo service nydus-snapshotter restart", shell=True, check=True)
 
 
 def set_log_level(log_level):
@@ -345,6 +253,85 @@ def set_log_level(log_level):
         update_toml(config_file, updated_toml_str)
 
     restart_nydus_snapshotter()
+
+
+def wait_for_snapshot_metadata_to_be_gced(snapshotter, debug=False):
+    """
+    After restarting containerd it may take a while for the GC to kick in and
+    delete the metadata corresponding to previous snapshots. This metadata
+    is stored in a Bolt DB in /var/lib/containerd/io.containerd.metadata.v1.bolt/meta.db
+
+    Annoyingly, it is hard to manually delete files from the database w/out
+    writting a small Go script. Instead, we rely on the bbolt CLI tool to
+    poll the DB until the GC has done its job.
+    """
+    bbolt_path = join(BIN_DIR, "bbolt")
+    db_path = "/var/lib/containerd/io.containerd.metadata.v1.bolt/meta.db"
+    tmp_db_path = "/tmp/containerd_meta_copy.db"
+    bbolt_cmd = f"{bbolt_path} keys {tmp_db_path} v1 k8s.io snapshots {snapshotter}"
+
+    while True:
+        # Make a user-owned copy of the DB (bbolt complains otherwise)
+        run(f"sudo cp {db_path} {tmp_db_path}", shell=True, check=True)
+        run(
+            "sudo chown {}:{} {}".format(getuid(), getgid(), tmp_db_path),
+            shell=True,
+            check=True,
+        )
+
+        result = run(bbolt_cmd, shell=True, capture_output=True)
+        stdout = result.stdout.decode("utf-8").strip()
+
+        if result.returncode == 1:
+            # This can be a benign error if the snapshotter has not been used
+            # at all, never
+            if stdout == "bucket not found":
+                if debug:
+                    print(f"WARNING: bucket {snapshotter} not found in metadata")
+                    run(f"rm {tmp_db_path}", shell=True, check=True)
+                return
+            else:
+                print(
+                    "ERROR: running bbolt command: stdout: {}, stderr: {}".format(
+                        stdout, result.stderr.decode("utf-8").strip()
+                    )
+                )
+                run(f"rm {tmp_db_path}", shell=True, check=True)
+
+                raise RuntimeError("Error running bbolt command!")
+        elif result.returncode == 0:
+            if len(stdout) == 0:
+                run(f"rm {tmp_db_path}", shell=True, check=True)
+                return
+
+            print(
+                "Got {} snapshot's metadata for snapshotter: {}".format(
+                    len(stdout.split("\n")), snapshotter
+                )
+            )
+            sleep(2)
+        else:
+            print(
+                "ERROR: running bbolt command: stdout: {}, stderr: {}".format(
+                    stdout, result.stderr.decode("utf-8").strip()
+                )
+            )
+            run(f"rm {tmp_db_path}", shell=True, check=True)
+
+            raise RuntimeError("Error running bbolt command!")
+
+
+# ------------------------------------------------------------------------------
+# Main entrypoint tasks
+# ------------------------------------------------------------------------------
+
+
+@task
+def build(ctx, nocache=False, push=False):
+    """
+    Build the nydus-snapshotter image
+    """
+    build_nydus_snapshotter_image(nocache, push)
 
 
 @task
@@ -374,20 +361,6 @@ def cli(ctx, mount_path=join(PROJ_ROOT, "..", "nydus-snapshotter")):
 
 
 @task
-def stop(ctx):
-    """
-    Stop the nydus-snapshotter work-on container
-    """
-    result = run(
-        "docker rm -f {}".format(NYDUS_SNAPSHOTTER_CTR_NAME),
-        shell=True,
-        check=True,
-        capture_output=True,
-    )
-    assert result.returncode == 0
-
-
-@task
 def hot_replace(ctx):
     """
     Replace nydus-snapshotter binaries from running workon container
@@ -411,6 +384,15 @@ def hot_replace(ctx):
         run(docker_cmd, shell=True, check=True)
 
     restart_nydus_snapshotter()
+
+
+@task
+def purge(ctx):
+    """
+    Remove all cached snapshots in the snapshotter cache
+    """
+    wait_for_containerd_socket()
+    do_purge(debug=True)
 
 
 @task
@@ -479,3 +461,17 @@ EOF'
     run("sudo systemctl daemon-reload", shell=True, check=True)
 
     restart_nydus_snapshotter()
+
+
+@task
+def stop(ctx):
+    """
+    Stop the nydus-snapshotter work-on container
+    """
+    result = run(
+        "docker rm -f {}".format(NYDUS_SNAPSHOTTER_CTR_NAME),
+        shell=True,
+        check=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0

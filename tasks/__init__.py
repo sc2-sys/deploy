@@ -1,10 +1,10 @@
 from invoke import Collection
 
-from . import base
 from . import coco
 from . import containerd
 from . import cosign
 from . import demo_apps
+from . import docker
 from . import format_code
 from . import gc
 from . import kernel
@@ -26,11 +26,11 @@ from . import skopeo
 from . import svsm
 
 ns = Collection(
-    base,
     coco,
     containerd,
     cosign,
     demo_apps,
+    docker,
     format_code,
     gc,
     k8s,

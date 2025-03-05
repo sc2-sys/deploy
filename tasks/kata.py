@@ -4,7 +4,6 @@ from subprocess import run
 from tasks.util.containerd import restart_containerd
 from tasks.util.env import (
     KATA_CONFIG_DIR,
-    KATA_IMAGE_TAG,
     KATA_IMG_DIR,
     KATA_ROOT,
     KATA_RUNTIMES,
@@ -13,58 +12,13 @@ from tasks.util.env import (
     SC2_RUNTIMES,
 )
 from tasks.util.kata import (
+    build_kata_image,
     replace_agent as replace_kata_agent,
     replace_shim as replace_kata_shim,
     run_kata_workon_ctr,
     stop_kata_workon_ctr,
 )
 from tasks.util.toml import read_value_from_toml, update_toml
-from tasks.util.versions import RUST_VERSION
-
-
-@task
-def build(ctx, nocache=False, push=False):
-    """
-    Build the Kata Containers workon docker image
-    """
-    build_args = {
-        "RUST_VERSION": RUST_VERSION,
-    }
-    build_args_str = [
-        "--build-arg {}={}".format(key, build_args[key]) for key in build_args
-    ]
-    build_args_str = " ".join(build_args_str)
-
-    docker_cmd = "docker build {} {} -t {} -f {} .".format(
-        "--no-cache" if nocache else "",
-        build_args_str,
-        KATA_IMAGE_TAG,
-        join(PROJ_ROOT, "docker", "kata.dockerfile"),
-    )
-    run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
-
-    if push:
-        run(f"docker push {KATA_IMAGE_TAG}", shell=True, check=True)
-
-
-@task
-def cli(ctx, mount_path=join(PROJ_ROOT, "..", "kata-containers")):
-    """
-    Get a working environemnt to develop Kata
-    """
-    if mount_path is not None:
-        mount_path = abspath(mount_path)
-
-    run_kata_workon_ctr(mount_path=mount_path)
-    run("docker exec -it {} bash".format(KATA_WORKON_CTR_NAME), shell=True, check=True)
-
-
-@task
-def stop(ctx):
-    """
-    Remove the Kata developement environment
-    """
-    stop_kata_workon_ctr()
 
 
 def set_log_level(log_level):
@@ -92,7 +46,30 @@ def set_log_level(log_level):
 
 
 @task
+def build(ctx, nocache=False, push=False):
+    """
+    Build the Kata Containers workon docker image
+    """
+    build_kata_image(nocache, push)
+
+
+@task
+def cli(ctx, mount_path=join(PROJ_ROOT, "..", "kata-containers")):
+    """
+    Get a working environemnt to develop Kata
+    """
+    if mount_path is not None:
+        mount_path = abspath(mount_path)
+
+    run_kata_workon_ctr(mount_path=mount_path)
+    run("docker exec -it {} bash".format(KATA_WORKON_CTR_NAME), shell=True, check=True)
+
+
+@task
 def enable_annotation(ctx, annotation, runtime="qemu-snp-sc2"):
+    """
+    Enable Kata annotation in config file
+    """
     conf_file_path = join(KATA_CONFIG_DIR, "configuration-{}.toml".format(runtime))
     enabled_annotations = read_value_from_toml(
         conf_file_path, "hypervisor.qemu.enable_annotations"
@@ -113,6 +90,9 @@ def enable_annotation(ctx, annotation, runtime="qemu-snp-sc2"):
 
 @task
 def hot_replace_agent(ctx, debug=False, runtime="qemu-snp-sc2"):
+    """
+    Replace Kata Agent from built version in work-on container
+    """
     replace_kata_agent(
         dst_initrd_path=join(
             KATA_IMG_DIR, "kata-containers-initrd-confidential-sc2.img"
@@ -125,6 +105,9 @@ def hot_replace_agent(ctx, debug=False, runtime="qemu-snp-sc2"):
 
 @task
 def hot_replace_shim(ctx, runtime="qemu-snp-sc2"):
+    """
+    Replace Kata Shim from built version in work-on container
+    """
     replace_kata_shim(
         dst_shim_binary=join(
             KATA_ROOT,
@@ -140,3 +123,11 @@ def hot_replace_shim(ctx, runtime="qemu-snp-sc2"):
     )
 
     restart_containerd()
+
+
+@task
+def stop(ctx):
+    """
+    Remove the Kata developement environment
+    """
+    stop_kata_workon_ctr()

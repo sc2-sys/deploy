@@ -2,30 +2,17 @@ from invoke import task
 from os.path import join
 from subprocess import run
 from tasks.util.docker import copy_from_ctr_image, is_ctr_running
-from tasks.util.env import GHCR_URL, GITHUB_ORG, PROJ_ROOT, print_dotted_line
-from tasks.util.nydus import NYDUS_IMAGE_HOST_PATH, NYDUSIFY_PATH
+from tasks.util.env import PROJ_ROOT, print_dotted_line
+from tasks.util.nydus import (
+    NYDUS_IMAGE_HOST_PATH,
+    NYDUS_IMAGE_TAG,
+    NYDUSIFY_PATH,
+    build_nydus_image,
+)
 from tasks.util.versions import NYDUS_VERSION
 
 NYDUS_CTR_NAME = "nydus-workon"
-NYDUS_IMAGE_TAG = join(GHCR_URL, GITHUB_ORG, "nydus") + f":{NYDUS_VERSION}"
-
 NYDUS_IMAGE_CTR_PATH = "/go/src/github.com/sc2-sys/nydus/target/release/nydus-image"
-
-
-@task
-def build(ctx, nocache=False, push=False):
-    """
-    Build the nydusd and nydus-snapshotter images
-    """
-    docker_cmd = "docker build {} -t {} -f {} .".format(
-        "--no-cache" if nocache else "",
-        NYDUS_IMAGE_TAG,
-        join(PROJ_ROOT, "docker", "nydus.dockerfile"),
-    )
-    run(docker_cmd, shell=True, check=True, cwd=PROJ_ROOT)
-
-    if push:
-        run(f"docker push {NYDUS_IMAGE_TAG}", shell=True, check=True)
 
 
 def do_install():
@@ -47,11 +34,11 @@ def do_install():
 
 
 @task
-def install(ctx):
+def build(ctx, nocache=False, push=False):
     """
-    Install the nydusify CLI tool
+    Build the nydusd and nydus-snapshotter images
     """
-    do_install()
+    build_nydus_image(nocache, push)
 
 
 @task
@@ -81,20 +68,6 @@ def cli(ctx, mount_path=join(PROJ_ROOT, "..", "nydus")):
 
 
 @task
-def stop(ctx):
-    """
-    Remove the Kata developement environment
-    """
-    result = run(
-        "docker rm -f {}".format(NYDUS_CTR_NAME),
-        shell=True,
-        check=True,
-        capture_output=True,
-    )
-    assert result.returncode == 0
-
-
-@task
 def hot_replace(ctx):
     """
     Replace nydus-image binary from running workon container
@@ -109,4 +82,26 @@ def hot_replace(ctx):
         f"{NYDUS_IMAGE_HOST_PATH}"
     )
     result = run(docker_cmd, shell=True, capture_output=True)
+    assert result.returncode == 0
+
+
+@task
+def install(ctx):
+    """
+    Install the nydusify CLI tool
+    """
+    do_install()
+
+
+@task
+def stop(ctx):
+    """
+    Remove the Kata developement environment
+    """
+    result = run(
+        "docker rm -f {}".format(NYDUS_CTR_NAME),
+        shell=True,
+        check=True,
+        capture_output=True,
+    )
     assert result.returncode == 0

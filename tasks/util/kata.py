@@ -1,21 +1,25 @@
 from os import environ, makedirs
 from os.path import dirname, exists, join
 from subprocess import run
-from tasks.util.docker import copy_from_ctr_image, is_ctr_running
+from tasks.util.docker import build_image, copy_from_ctr_image, is_ctr_running
 from tasks.util.env import (
     CONTAINERD_CONFIG_FILE,
+    GHCR_URL,
+    GITHUB_ORG,
     KATA_CONFIG_DIR,
     KATA_IMG_DIR,
     KATA_ROOT,
     KATA_RUNTIMES,
     KATA_WORKON_CTR_NAME,
-    KATA_IMAGE_TAG,
     PAUSE_IMAGE_REPO,
+    PROJ_ROOT,
     SC2_RUNTIMES,
 )
 from tasks.util.registry import HOST_CERT_PATH
-from tasks.util.versions import PAUSE_IMAGE_VERSION
+from tasks.util.versions import KATA_VERSION, PAUSE_IMAGE_VERSION, RUST_VERSION
 from tasks.util.toml import remove_entry_from_toml, update_toml
+
+KATA_IMAGE_TAG = join(GHCR_URL, GITHUB_ORG, "kata-containers") + f":{KATA_VERSION}"
 
 # These paths are hardcoded in the docker image: ./docker/kata.dockerfile
 KATA_SOURCE_DIR = "/go/src/github.com/kata-containers/kata-containers-sc2"
@@ -24,6 +28,80 @@ KATA_SHIM_SOURCE_DIR = join(KATA_SOURCE_DIR, "src", "runtime")
 KATA_BASELINE_SOURCE_DIR = "/go/src/github.com/kata-containers/kata-containers-baseline"
 KATA_BASELINE_AGENT_SOURCE_DIR = join(KATA_BASELINE_SOURCE_DIR, "src", "agent")
 KATA_BASELINE_SHIM_SOURCE_DIR = join(KATA_BASELINE_SOURCE_DIR, "src", "runtime")
+
+
+def build_kata_image(nocache, push, debug=True):
+    build_image(
+        KATA_IMAGE_TAG,
+        join(PROJ_ROOT, "docker", "kata.dockerfile"),
+        build_args={"RUST_VERSION": RUST_VERSION},
+        nocache=nocache,
+        push=push,
+        debug=debug,
+    )
+
+
+def build_pause_image(sc2, debug, hot_replace):
+    """
+    When we create a rootfs for CoCo, we need to embed the pause image into
+    it. As a consequence, we need to build the tarball first.
+    """
+    pause_image_build_dir = "/tmp/sc2-pause-image-build-dir"
+
+    if exists(pause_image_build_dir):
+        run(f"sudo rm -rf {pause_image_build_dir}", shell=True, check=True)
+
+    makedirs(pause_image_build_dir)
+    makedirs(join(pause_image_build_dir, "static-build"))
+    makedirs(join(pause_image_build_dir, "scripts"))
+
+    script_files = ["static-build/pause-image", "scripts/lib.sh"]
+    for ctr_path, host_path in zip(
+        [
+            join(
+                KATA_SOURCE_DIR if sc2 else KATA_BASELINE_SOURCE_DIR,
+                "tools/packaging",
+                script,
+            )
+            for script in script_files
+        ],
+        [join(pause_image_build_dir, script) for script in script_files],
+    ):
+        copy_from_kata_workon_ctr(
+            ctr_path, host_path, sudo=False, debug=debug, hot_replace=hot_replace
+        )
+
+    # Build pause image
+    work_env = environ.update(
+        {
+            "pause_image_repo": PAUSE_IMAGE_REPO,
+            "pause_image_version": PAUSE_IMAGE_VERSION,
+        }
+    )
+    out = run(
+        "./build.sh",
+        shell=True,
+        cwd=join(pause_image_build_dir, "static-build", "pause-image"),
+        env=work_env,
+        capture_output=True,
+    )
+    assert out.returncode == 0, "Error building pause image: {}".format(
+        out.stderr.decode("utf-8")
+    )
+
+    # Generate tarball of pause bundle
+    pause_bundle_tarball_name = "pause_bundle_sc2.tar.xz"
+    tar_cmd = f"tar -cJf {pause_bundle_tarball_name} pause_bundle"
+    run(
+        tar_cmd,
+        shell=True,
+        check=True,
+        cwd=join(pause_image_build_dir, "static-build", "pause-image"),
+    )
+
+    return join(
+        pause_image_build_dir, "static-build", "pause-image", pause_bundle_tarball_name
+    )
 
 
 def run_kata_workon_ctr(mount_path=None):
@@ -92,69 +170,6 @@ def copy_from_kata_workon_ctr(
         # If not hot-replacing, use the built-in method to copy from a
         # container rootfs without initializing it
         copy_from_ctr_image(KATA_IMAGE_TAG, [ctr_path], [host_path], requires_sudo=sudo)
-
-
-def build_pause_image(sc2, debug, hot_replace):
-    """
-    When we create a rootfs for CoCo, we need to embed the pause image into
-    it. As a consequence, we need to build the tarball first.
-    """
-    pause_image_build_dir = "/tmp/sc2-pause-image-build-dir"
-
-    if exists(pause_image_build_dir):
-        run(f"sudo rm -rf {pause_image_build_dir}", shell=True, check=True)
-
-    makedirs(pause_image_build_dir)
-    makedirs(join(pause_image_build_dir, "static-build"))
-    makedirs(join(pause_image_build_dir, "scripts"))
-
-    script_files = ["static-build/pause-image", "scripts/lib.sh"]
-    for ctr_path, host_path in zip(
-        [
-            join(
-                KATA_SOURCE_DIR if sc2 else KATA_BASELINE_SOURCE_DIR,
-                "tools/packaging",
-                script,
-            )
-            for script in script_files
-        ],
-        [join(pause_image_build_dir, script) for script in script_files],
-    ):
-        copy_from_kata_workon_ctr(
-            ctr_path, host_path, sudo=False, debug=debug, hot_replace=hot_replace
-        )
-
-    # Build pause image
-    work_env = environ.update(
-        {
-            "pause_image_repo": PAUSE_IMAGE_REPO,
-            "pause_image_version": PAUSE_IMAGE_VERSION,
-        }
-    )
-    out = run(
-        "./build.sh",
-        shell=True,
-        cwd=join(pause_image_build_dir, "static-build", "pause-image"),
-        env=work_env,
-        capture_output=True,
-    )
-    assert out.returncode == 0, "Error building pause image: {}".format(
-        out.stderr.decode("utf-8")
-    )
-
-    # Generate tarball of pause bundle
-    pause_bundle_tarball_name = "pause_bundle_sc2.tar.xz"
-    tar_cmd = f"tar -cJf {pause_bundle_tarball_name} pause_bundle"
-    run(
-        tar_cmd,
-        shell=True,
-        check=True,
-        cwd=join(pause_image_build_dir, "static-build", "pause-image"),
-    )
-
-    return join(
-        pause_image_build_dir, "static-build", "pause-image", pause_bundle_tarball_name
-    )
 
 
 def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=False):
