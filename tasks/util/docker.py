@@ -47,10 +47,13 @@ def build_image(
     docker_cmd = "docker build {} {} -t {} -f {} .".format(
         "--no-cache" if nocache else "", build_args_cmd, image_tag, dockerfile
     )
+    run(docker_cmd, shell=True, check=True, cwd=cwd)
+    """
     result = run(docker_cmd, shell=True, capture_output=True, cwd=cwd)
     assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
     if debug:
         print(result.stdout.decode("utf-8").strip())
+    """
 
     if push:
         result = run(f"docker push {image_tag}", shell=True, capture_output=True)
