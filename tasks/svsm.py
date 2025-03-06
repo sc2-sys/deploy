@@ -184,7 +184,7 @@ def do_install(debug, clean):
         result = run(f"sudo rm -rf {SVSM_ROOT}", shell=True, capture_output=True)
         assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
 
-    run(f"sudo mkdir -p ${SVSM_ROOT}", shell=True, check=True)
+    run(f"sudo mkdir -p {SVSM_ROOT}", shell=True, check=True)
 
     # Install guest kernel
     copy_from_ctr_image(

@@ -1,4 +1,41 @@
-# Attestation for Knative on CoCo
+# Attestation in SC2
+
+Attestation is the process of appraising the provisioned TEE and the software
+loaded therein. In the TEEs used in SC2, AMD SEV-SNP, and Intel TDX, the
+attestation flow is relatively similar: __after__ starting the cVM, the trusted
+software in the guest will retrieve an attestation report from the hardware
+root-of-trust and will validate it with a [Trustee](
+https://github.com/confidential-containers/trustee) deployment that acts as a
+relying-party.
+
+The attestation report contains the launch measurement of the cVM, including
+the initial software components like OVMF, the initrd, and the guest kernel,
+signed to a hardware root-of-trust.
+
+## Trustee
+
+Configuring Trustee to check the launch measurement is not as straightforward
+as one may think. At a very high level, Trustee releases secrets/resources
+in response to requests iff the request passes an associated _resource policy_
+and _attestation policy_.
+
+# TODO: this paragraph may not be true?
+This policy may (or may not) demand that the request presents a valid launch
+measurement, matching a user-provided one. As a consequence: no secret/resource
+means no policy checking.
+
+To provision secrets and resources to Trustee, we can use a client tool called
+the KBC. To make matters worse, however, the attestation code in guest-components
+(which also uses the KBC) will _only_ request a very specific resource. We
+explain next how to configure Trustee to achieve three different goals:
+
+### Launch Measurement Verification
+
+### Image Signature
+
+### Image Encryption
+
+## SEV-SNP Attestation
 
 ## SEV(-ES) Attestation
 

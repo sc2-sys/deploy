@@ -77,6 +77,7 @@ def build(ctx, app=None, nocache=False):
 def do_push_to_local_registry(debug=False):
     print_dotted_line("Pushing {} demo apps to local regsitry".format(len(APP_LIST)))
 
+    # TODO: add signed version of the app (and encrypted too)
     for app_name in APP_LIST:
         docker_tag = get_docker_tag_for_app(app_name)
         local_registry_tag = get_local_registry_tag_for_app(app_name)
