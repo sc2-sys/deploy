@@ -95,4 +95,23 @@ RUN mkdir -p ${CODE_DIR_GC} \
     && rustup override set ${RUST_VERSION_GC} \
     && cargo build --release --features "nydus"
 
+# ------------------------------------------------------------------------------
+# Build Guest Components
+#
+# The agent is very tightly-coupled with guest-components, so it makes sense
+# to modify both in the same work-on container
+# ------------------------------------------------------------------------------
+
+ARG CODE_DIR_GC=/git/sc2-sys/guest-components
+ARG RUST_VERSION_GC=1.81
+RUN mkdir -p ${CODE_DIR_GC} \
+    && git clone\
+        -b sc2-main \
+        https://github.com/sc2-sys/guest-components \
+        ${CODE_DIR_GC} \
+    && git config --global --add safe.directory ${CODE_DIR_GC} \
+    && cd ${CODE_DIR_GC}/image-rs \
+    && rustup override set ${RUST_VERSION_GC} \
+    && cargo build --release --features "nydus"
+
 WORKDIR ${CODE_DIR}

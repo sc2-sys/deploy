@@ -255,7 +255,7 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
         KATA_AGENT_SOURCE_DIR if sc2 else KATA_BASELINE_AGENT_SOURCE_DIR,
         "target",
         "x86_64-unknown-linux-musl",
-        "release",
+        "debug",  # "release",
         "kata-agent",
     )
     copy_from_kata_workon_ctr(
