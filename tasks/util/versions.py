@@ -1,10 +1,10 @@
 # CoCo versions (note that the CoCo release pins the Kata Version)
 COCO_VERSION = "0.12.0"
-KATA_VERSION = "3.13.0"
+KATA_VERSION = "3.14.0"
 
 # Base software versions
 GO_VERSION = "1.23.0"
-RUST_VERSION = "1.78.0"
+RUST_VERSION = "1.80.0"
 
 # Kubernetes versions
 CONTAINERD_VERSION = "1.7.19"

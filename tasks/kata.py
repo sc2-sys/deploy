@@ -54,14 +54,17 @@ def build(ctx, nocache=False, push=False):
 
 
 @task
-def cli(ctx, mount_path=join(PROJ_ROOT, "..", "kata-containers")):
+def cli(ctx, mount_path=join(PROJ_ROOT, "..", "kata-containers"), gc_mount_path=join(PROJ_ROOT, "..", "guest-components")):
     """
     Get a working environemnt to develop Kata
     """
     if mount_path is not None:
         mount_path = abspath(mount_path)
 
-    run_kata_workon_ctr(mount_path=mount_path)
+    if gc_mount_path is not None:
+        gc_mount_path = abspath(gc_mount_path)
+
+    run_kata_workon_ctr(mount_path=mount_path, gc_mount_path=gc_mount_path)
     run("docker exec -it {} bash".format(KATA_WORKON_CTR_NAME), shell=True, check=True)
 
 
