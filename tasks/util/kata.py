@@ -15,6 +15,7 @@ from tasks.util.env import (
     PROJ_ROOT,
     SC2_RUNTIMES,
 )
+from tasks.util.gc import GC_SOURCE_DIR
 from tasks.util.registry import HOST_CERT_PATH
 from tasks.util.versions import KATA_VERSION, PAUSE_IMAGE_VERSION, RUST_VERSION
 from tasks.util.toml import remove_entry_from_toml, update_toml
@@ -104,7 +105,7 @@ def build_pause_image(sc2, debug, hot_replace):
     )
 
 
-def run_kata_workon_ctr(mount_path=None):
+def run_kata_workon_ctr(mount_path=None, gc_mount_path=None):
     """
     Start Kata workon container image if it is not running. Return `True` if
     we actually did start the container
@@ -116,6 +117,7 @@ def run_kata_workon_ctr(mount_path=None):
         "docker run",
         "-d -t",
         (f"-v {mount_path}:{KATA_SOURCE_DIR}" if mount_path else ""),
+        (f"-v {gc_mount_path}:{GC_SOURCE_DIR}" if gc_mount_path else ""),
         "--name {}".format(KATA_WORKON_CTR_NAME),
         KATA_IMAGE_TAG,
         "bash",
