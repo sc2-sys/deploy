@@ -54,7 +54,11 @@ def build(ctx, nocache=False, push=False):
 
 
 @task
-def cli(ctx, mount_path=join(PROJ_ROOT, "..", "kata-containers"), gc_mount_path=join(PROJ_ROOT, "..", "guest-components")):
+def cli(
+    ctx,
+    mount_path=join(PROJ_ROOT, "..", "kata-containers"),
+    gc_mount_path=join(PROJ_ROOT, "..", "guest-components"),
+):
     """
     Get a working environemnt to develop Kata
     """
