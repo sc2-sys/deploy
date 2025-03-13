@@ -313,24 +313,6 @@ def deploy(ctx, debug=False, clean=False):
     ovmf_install()
     print("Success!")
 
-    # Update SNP class to use default QEMU (we use host kernel 6.11, so we
-    # can use upstream QEMU 9.1). We do this update before generating the SC2
-    # runtime classes, so they will inherit the QEMU value
-    # TODO: remove when bumping to a new CoCo release
-    qemu_path = join(KATA_ROOT, "bin", "qemu-system-x86_64")
-    updated_toml_str = """
-    [hypervisor.qemu]
-    path = "{qemu_path}"
-    valid_hypervisor_paths = [ "{qemu_path}" ]
-    """.format(
-        qemu_path=qemu_path
-    )
-    update_toml(
-        join(KATA_CONFIG_DIR, "configuration-qemu-snp.toml"),
-        updated_toml_str,
-        requires_root=True,
-    )
-
     # Apply general patches to the Kata runtime
     replace_kata_shim(
         dst_shim_binary=join(KATA_ROOT, "bin", "containerd-shim-kata-v2"),
