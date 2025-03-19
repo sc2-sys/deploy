@@ -15,6 +15,7 @@ from tasks.util.env import (
     PROJ_ROOT,
     SC2_RUNTIMES,
 )
+from tasks.util.gc import GC_SOURCE_DIR
 from tasks.util.registry import HOST_CERT_PATH
 from tasks.util.versions import KATA_VERSION, PAUSE_IMAGE_VERSION, RUST_VERSION
 from tasks.util.toml import remove_entry_from_toml, update_toml
@@ -28,6 +29,8 @@ KATA_SHIM_SOURCE_DIR = join(KATA_SOURCE_DIR, "src", "runtime")
 KATA_BASELINE_SOURCE_DIR = "/go/src/github.com/kata-containers/kata-containers-baseline"
 KATA_BASELINE_AGENT_SOURCE_DIR = join(KATA_BASELINE_SOURCE_DIR, "src", "agent")
 KATA_BASELINE_SHIM_SOURCE_DIR = join(KATA_BASELINE_SOURCE_DIR, "src", "runtime")
+
+KATA_AGENT_INIT = "no"
 
 
 def build_kata_image(nocache, push, debug=True):
@@ -104,7 +107,7 @@ def build_pause_image(sc2, debug, hot_replace):
     )
 
 
-def run_kata_workon_ctr(mount_path=None):
+def run_kata_workon_ctr(mount_path=None, gc_mount_path=None):
     """
     Start Kata workon container image if it is not running. Return `True` if
     we actually did start the container
@@ -116,6 +119,7 @@ def run_kata_workon_ctr(mount_path=None):
         "docker run",
         "-d -t",
         (f"-v {mount_path}:{KATA_SOURCE_DIR}" if mount_path else ""),
+        (f"-v {gc_mount_path}:{GC_SOURCE_DIR}" if gc_mount_path else ""),
         "--name {}".format(KATA_WORKON_CTR_NAME),
         KATA_IMAGE_TAG,
         "bash",
@@ -144,7 +148,7 @@ def copy_from_kata_workon_ctr(
 ):
     if hot_replace and not is_ctr_running(KATA_WORKON_CTR_NAME):
         print("Must have the work-on container running to hot replace!")
-        print("Consider running: inv containerd.cli ")
+        print("Consider running: inv kata.cli ")
         raise RuntimeError("Hot-replace without work-on running!")
 
     if hot_replace:
@@ -236,7 +240,17 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
         hot_replace=hot_replace,
     )
 
-    # Finally, also copy our kata agent
+    # ----- Prepare kata agent tarball -----
+
+    tmp_rootfs_agent_tarball_dir = join(tmp_rootfs_base_dir, "agent-tarball")
+    makedirs(tmp_rootfs_agent_tarball_dir)
+    makedirs(join(tmp_rootfs_agent_tarball_dir, "usr"))
+    makedirs(join(tmp_rootfs_agent_tarball_dir, "usr", "bin"))
+    makedirs(join(tmp_rootfs_agent_tarball_dir, "usr", "lib"))
+    makedirs(join(tmp_rootfs_agent_tarball_dir, "usr", "lib", "systemd"))
+    makedirs(join(tmp_rootfs_agent_tarball_dir, "usr", "lib", "systemd", "system"))
+
+    # Copy our kata agent
     agent_host_path = join(
         KATA_AGENT_SOURCE_DIR if sc2 else KATA_BASELINE_AGENT_SOURCE_DIR,
         "target",
@@ -246,11 +260,32 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
     )
     copy_from_kata_workon_ctr(
         agent_host_path,
-        join(tmp_rootfs_base_dir, "kata-agent"),
+        join(tmp_rootfs_agent_tarball_dir, "usr", "bin", "kata-agent"),
         sudo=True,
         debug=debug,
         hot_replace=hot_replace,
     )
+
+    # Copy Kata's systemd files
+    unit_src_dir = "/usr/lib/systemd/system"
+    unit_files = ["kata-agent.service", "kata-containers.target"]
+    for unit_file in unit_files:
+        copy_from_kata_workon_ctr(
+            join(unit_src_dir, unit_file),
+            join(tmp_rootfs_agent_tarball_dir, unit_src_dir[1:], unit_file),
+            sudo=True,
+            debug=debug,
+            hot_replace=hot_replace,
+        )
+
+    agent_tarball = join(tmp_rootfs_base_dir, "kata_agent.tar.xz")
+    result = run(
+        f"tar cvJf {agent_tarball} ./usr",
+        shell=True,
+        capture_output=True,
+        cwd=tmp_rootfs_agent_tarball_dir,
+    )
+    assert result.returncode == 0, result.stderr.decode("utf-8")
 
     # ----- Populate rootfs with base ubuntu using Kata's scripts -----
 
@@ -265,9 +300,9 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
 
     rootfs_builder_dir = join(tmp_rootfs_scripts_dir, "rootfs-builder")
     work_env = {
-        "AGENT_INIT": "yes",
+        "AGENT_INIT": KATA_AGENT_INIT,
         "AGENT_POLICY_FILE": join(tmp_rootfs_base_dir, "allow-all.rego"),
-        "AGENT_SOURCE_BIN": join(tmp_rootfs_base_dir, "kata-agent"),
+        "AGENT_TARBALL": agent_tarball,
         "CONFIDENTIAL_GUEST": "yes",
         "DMVERITY_SUPPORT": "yes",
         "MEASURED_ROOTFS": "no",
@@ -275,7 +310,7 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
         # host OS versions from introducing subtle changes in the rootfs
         "USE_DOCKER": "yes",
         "OS_VERSION": "jammy",
-        "RUST_VERSION": "1.75.0",
+        "RUST_VERSION": RUST_VERSION,
         "GO_VERSION": "1.22.2",
         "PAUSE_IMAGE_TARBALL": build_pause_image(
             sc2=sc2, debug=debug, hot_replace=hot_replace
@@ -356,7 +391,7 @@ def replace_agent(
 
     # ----- Pack rootfs into initrd using Kata's script -----
 
-    work_env = {"AGENT_INIT": "yes"}
+    work_env = {"AGENT_INIT": KATA_AGENT_INIT}
     initrd_pack_cmd = "sudo -E {} -o {} {}".format(
         join(tmp_rootfs_scripts_dir, "initrd-builder", "initrd_builder.sh"),
         dst_initrd_path,
