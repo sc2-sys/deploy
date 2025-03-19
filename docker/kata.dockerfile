@@ -73,7 +73,8 @@ RUN mkdir -p ${CODE_DIR} \
     && cd ${CODE_DIR}/src/agent \
     && rustup component add rust-analyzer \
     && rustup target add x86_64-unknown-linux-musl \
-    && make
+    && make \
+    && make install-services
 
 # ------------------------------------------------------------------------------
 # Build Guest Components

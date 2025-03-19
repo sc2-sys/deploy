@@ -32,7 +32,7 @@ KNATIVE_VERSION = "1.15.0"
 # table in ./docs/host_kernel.md
 HOST_KERNEL_VERSION_SNP = "6.11.0-snp-host-cc2568386"
 HOST_KERNEL_VERSION_TDX = "6.8.0-1013-intel"
-GUEST_KERNEL_VERSION = "6.12.8"
+GUEST_KERNEL_VERSION = "6.12.13"
 
 # Coconut SVSM versions
 IGVM_VERSION = "0.3.4"
