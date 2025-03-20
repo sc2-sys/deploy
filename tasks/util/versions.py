@@ -40,3 +40,4 @@ IGVM_VERSION = "0.3.4"
 
 # Firmware
 OVMF_VERSION = "edk2-stable202411"
+OVMF_VERSION_AZURE = "edk2-stable202402"
