@@ -18,7 +18,7 @@ from tasks.util.env import (
 from tasks.util.gc import GC_SOURCE_DIR
 from tasks.util.registry import HOST_CERT_PATH
 from tasks.util.versions import KATA_VERSION, PAUSE_IMAGE_VERSION, RUST_VERSION
-from tasks.util.toml import remove_entry_from_toml, update_toml
+from tasks.util.toml import update_toml
 
 KATA_IMAGE_TAG = join(GHCR_URL, GITHUB_ORG, "kata-containers") + f":{KATA_VERSION}"
 
@@ -407,8 +407,7 @@ def replace_agent(
         )
         out = run(pack_cmd, shell=True, env=work_env, capture_output=True)
         assert out.returncode == 0, "Error packing {}: {}".format(
-            package,
-            out.stderr.decode("utf-8")
+            package, out.stderr.decode("utf-8")
         )
         if debug:
             print(out.stdout.decode("utf-8").strip())
