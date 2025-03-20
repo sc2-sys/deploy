@@ -46,9 +46,8 @@ jobs:
       matrix:
         include:
           - tee: snp
-            runtime_classes: "qemu qemu-coco-dev qemu-snp qemu-snp-sc2"
-          - tee: tdx
-            runtime_classes: "qemu qemu-coco-dev qemu-tdx qemu-tdx-sc2"
+            # Temporarily disable TDX tests, until server is available again
+            # - tee: tdx
 
     runs-on: [self-hosted, "${{ matrix.tee }}"]
     env:
