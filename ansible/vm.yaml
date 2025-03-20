@@ -1,0 +1,16 @@
+---
+
+- hosts: all
+  gather_facts: yes
+  tasks:
+    - include_tasks: tasks/apt.yaml
+    # Install docker before updating the host kernel so that the reboot in the
+    # latter also means we can use docker without sudo (which also requires a
+    # reboot)
+    - include_tasks: tasks/docker.yaml
+    # TODO: manually cherry-pick patches on top of svsm/linux
+    - include_tasks: tasks/update_host_kernel.yaml
+    - include_tasks: tasks/qemu.yaml
+    - include_tasks: tasks/rust.yaml
+    - include_tasks: tasks/code.yaml
+      # - include_tasks: tasks/sc2.yml
