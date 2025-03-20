@@ -4,7 +4,7 @@ from tasks.util.env import BIN_DIR, K8S_CONFIG_DIR, print_dotted_line
 from tasks.util.versions import COSIGN_VERSION
 from tasks.util.trustee import TRUSTEE_HOST_CONFIG_DIR
 
-COSIGN_BINARY = "cosign"
+COSIGN_BINARY = join(BIN_DIR, "cosign")
 
 COSIGN_PASSWORD = "foobar123"
 COSIGN_PRIV_KEY = join(TRUSTEE_HOST_CONFIG_DIR, "cosign.key")
@@ -54,7 +54,7 @@ def sign_container_image(image_tag):
 
     # Actually sign the image
     sign_cmd = (
-        f"cosign sign --allow-insecure-registry --yes --key {COSIGN_PRIV_KEY} "
+        f"{COSIGN_BINARY} sign --allow-insecure-registry --yes --key {COSIGN_PRIV_KEY} "
         f"{image_tag}"
     )
     result = run(

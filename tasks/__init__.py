@@ -4,7 +4,6 @@ from . import containerd
 from . import demo_apps
 from . import docker
 from . import format_code
-from . import gc
 from . import kernel
 from . import k8s
 from . import k9s
@@ -28,7 +27,6 @@ ns = Collection(
     demo_apps,
     docker,
     format_code,
-    gc,
     k8s,
     k9s,
     kata,

@@ -6,7 +6,6 @@ FROM ghcr.io/sc2-sys/base:0.12.0
 
 RUN curl -fsSL https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | \
         gpg --dearmor | tee /usr/share/keyrings/intel-sgx-archive-keyring.gpg > /dev/null \
-    # TODO: update to noble
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-sgx-archive-keyring.gpg] \
         https://download.01.org/intel-sgx/sgx_repo/ubuntu noble main" | \
         tee /etc/apt/sources.list.d/intel-sgx.list \
