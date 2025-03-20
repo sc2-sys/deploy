@@ -27,7 +27,9 @@ from tasks.operator import (
     install_cc_runtime as operator_install_cc_runtime,
 )
 from tasks.ovmf import install as ovmf_install
+from tasks.trustee import do_start as trustee_start
 from tasks.util.containerd import restart_containerd
+from tasks.util.cosign import install as cosign_install
 from tasks.util.docker import pull_artifact_images
 from tasks.util.env import (
     COCO_ROOT,
@@ -287,6 +289,9 @@ def deploy(ctx, debug=False, clean=False):
     k8s_tooling_install(debug=debug, clean=clean)
     k9s_install(debug=debug)
 
+    # Install image management tooling
+    cosign_install(debug=debug)
+
     # Create a single-node k8s cluster
     k8s_create(debug=debug)
 
@@ -360,6 +365,12 @@ def deploy(ctx, debug=False, clean=False):
 
     # Once we are done with installing components, restart containerd
     restart_containerd(debug=debug)
+
+    # For development purposes we deploy a trustee cluster locally. In a
+    # production deployment this would have to run elsewhere
+    print_dotted_line("Start trustee cluster (local)")
+    trustee_start(debug=debug, clean=clean)
+    print("Success!")
 
     # Start the VM cache at the end so that we can pick up the latest config
     # changes

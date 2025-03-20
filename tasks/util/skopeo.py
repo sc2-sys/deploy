@@ -5,11 +5,8 @@ from pymysql.err import IntegrityError
 from subprocess import run
 from tasks.util.cosign import sign_container_image
 from tasks.util.env import CONF_FILES_DIR, K8S_CONFIG_DIR
-from tasks.util.guest_components import (
-    start_coco_keyprovider,
-    stop_coco_keyprovider,
-)
-from tasks.util.kbs import create_kbs_secret
+
+# from tasks.util.trustee import create_kbs_secret
 from tasks.util.versions import SKOPEO_VERSION
 
 SKOPEO_IMAGE = "quay.io/skopeo/stable:v{}".format(SKOPEO_VERSION)
@@ -57,7 +54,8 @@ def encrypt_container_image(image_tag, sign=False):
     # to encrypt the OCI image. To that extent, we need to mount the encryption
     # key somewhere that the attestation agent (in the keyprovider) can find
     # it
-    start_coco_keyprovider(SKOPEO_ENCRYPTION_KEY, AA_CTR_ENCRYPTION_KEY)
+    # TODO: this is part of trustee cluster now
+    # start_coco_keyprovider(SKOPEO_ENCRYPTION_KEY, AA_CTR_ENCRYPTION_KEY)
 
     encrypted_image_tag = image_tag.split(":")[0] + ":encrypted"
     skopeo_cmd = [
@@ -75,9 +73,6 @@ def encrypt_container_image(image_tag, sign=False):
     skopeo_cmd = " ".join(skopeo_cmd)
     run_skopeo_cmd(skopeo_cmd)
 
-    # Stop the keyprovider when we are done encrypting layers
-    stop_coco_keyprovider()
-
     # Sanity check that the image is actually encrypted
     inspect_jsonstr = run_skopeo_cmd(
         "inspect --cert-dir /certs --authfile /config.json docker://{}".format(
@@ -92,7 +87,6 @@ def encrypt_container_image(image_tag, sign=False):
     ]
     if not all(layers):
         print("Some layers in image {} are not encrypted!".format(encrypted_image_tag))
-        stop_coco_keyprovider()
         raise RuntimeError("Image encryption failed!")
 
     # Create a secret in KBS with the encryption key. Skopeo needs it as raw
@@ -104,7 +98,8 @@ def encrypt_container_image(image_tag, sign=False):
     # encryption key is already there. Thus it is safe to ignore this exception
     # here
     try:
-        create_kbs_secret(encryption_key_resource_id, key_b64)
+        print("foo")
+        # create_kbs_secret(encryption_key_resource_id, key_b64)
     except IntegrityError:
         print("WARNING: error creating KBS secret...")
         pass

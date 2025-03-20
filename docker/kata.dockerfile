@@ -84,7 +84,6 @@ RUN mkdir -p ${CODE_DIR} \
 # ------------------------------------------------------------------------------
 
 ARG CODE_DIR_GC=/git/sc2-sys/guest-components
-ARG RUST_VERSION_GC=1.81
 RUN mkdir -p ${CODE_DIR_GC} \
     && git clone\
         -b sc2-main \
@@ -92,7 +91,7 @@ RUN mkdir -p ${CODE_DIR_GC} \
         ${CODE_DIR_GC} \
     && git config --global --add safe.directory ${CODE_DIR_GC} \
     && cd ${CODE_DIR_GC}/image-rs \
-    && rustup override set ${RUST_VERSION_GC} \
+    && rustup override set ${RUST_VERSION} \
     && cargo build --release --features "nydus"
 
 WORKDIR ${CODE_DIR}

@@ -1,0 +1,4 @@
+[submodule "trustee"]
+	path = trustee
+	url = git@github.com:sc2-sys/trustee.git
+	branch = sc2-main

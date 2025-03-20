@@ -5,6 +5,8 @@ PROJ_ROOT=${THIS_DIR}/..
 
 pushd ${PROJ_ROOT} >> /dev/null
 
+git submodule update --init > /dev/null
+
 # ----------------------------------
 # Python tasks config
 # ----------------------------------
