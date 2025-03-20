@@ -197,6 +197,7 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
     makedirs(tmp_rootfs_base_dir)
     makedirs(tmp_rootfs_dir)
     makedirs(tmp_rootfs_scripts_dir)
+    makedirs(join(tmp_rootfs_scripts_dir, "image-builder"))
     makedirs(join(tmp_rootfs_scripts_dir, "initrd-builder"))
     makedirs(join(tmp_rootfs_scripts_dir, "rootfs-builder"))
     makedirs(join(tmp_rootfs_scripts_dir, "rootfs-builder", "ubuntu"))
@@ -204,6 +205,8 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
 
     # Copy all the tooling/script files we need from the container
     script_files = [
+        "image-builder/image_builder.sh",
+        "image-builder/nsdax.gpl.c",
         "initrd-builder/initrd_builder.sh",
         "rootfs-builder/rootfs.sh",
         "rootfs-builder/nvidia",
@@ -309,7 +312,7 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
         # We build the `initrd` inside a container image to prevent different
         # host OS versions from introducing subtle changes in the rootfs
         "USE_DOCKER": "yes",
-        "OS_VERSION": "jammy",
+        "OS_VERSION": "oracular",
         "RUST_VERSION": RUST_VERSION,
         "GO_VERSION": "1.22.2",
         "PAUSE_IMAGE_TARBALL": build_pause_image(
@@ -372,6 +375,7 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
 
 def replace_agent(
     dst_initrd_path=join(KATA_IMG_DIR, "kata-containers-initrd-confidential-sc2.img"),
+    dst_img_path=join(KATA_IMG_DIR, "kata-containers-confidential-sc2.img"),
     debug=False,
     sc2=False,
     hot_replace=False,
@@ -387,22 +391,27 @@ def replace_agent(
     tmp_rootfs_base_dir = "/tmp/sc2-rootfs-build-dir"
     tmp_rootfs_dir = join(tmp_rootfs_base_dir, "rootfs")
     tmp_rootfs_scripts_dir = join(tmp_rootfs_base_dir, "osbuilder")
+
     prepare_rootfs(tmp_rootfs_base_dir, debug=debug, sc2=sc2, hot_replace=hot_replace)
 
-    # ----- Pack rootfs into initrd using Kata's script -----
+    # ----- Pack rootfs into initrd and image using Kata's script -----
 
+    # FIXME: We need the image for TDX-based baselines
+    # https://github.com/sc2-sys/deploy/issues/159
     work_env = {"AGENT_INIT": KATA_AGENT_INIT}
-    initrd_pack_cmd = "sudo -E {} -o {} {}".format(
-        join(tmp_rootfs_scripts_dir, "initrd-builder", "initrd_builder.sh"),
-        dst_initrd_path,
-        tmp_rootfs_dir,
-    )
-    out = run(initrd_pack_cmd, shell=True, env=work_env, capture_output=True)
-    assert out.returncode == 0, "Error packing initrd: {}".format(
-        out.stderr.decode("utf-8")
-    )
-    if debug:
-        print(out.stdout.decode("utf-8").strip())
+    for package in ["initrd", "image"]:
+        pack_cmd = "sudo -E {} -o {} {}".format(
+            join(tmp_rootfs_scripts_dir, f"{package}-builder", f"{package}_builder.sh"),
+            dst_initrd_path if package == "initrd" else dst_img_path,
+            tmp_rootfs_dir,
+        )
+        out = run(pack_cmd, shell=True, env=work_env, capture_output=True)
+        assert out.returncode == 0, "Error packing {}: {}".format(
+            package,
+            out.stderr.decode("utf-8")
+        )
+        if debug:
+            print(out.stdout.decode("utf-8").strip())
 
     # Lastly, update the Kata config to point to the new initrd
     target_runtimes = SC2_RUNTIMES if sc2 else KATA_RUNTIMES
@@ -413,16 +422,23 @@ def replace_agent(
             continue
 
         conf_file_path = join(KATA_CONFIG_DIR, "configuration-{}.toml".format(runtime))
-        updated_toml_str = """
-        [hypervisor.qemu]
-        initrd = "{new_initrd_path}"
-        """.format(
-            new_initrd_path=dst_initrd_path
-        )
-        update_toml(conf_file_path, updated_toml_str)
 
         if runtime == "qemu-coco-dev" or "tdx" in runtime:
-            remove_entry_from_toml(conf_file_path, "hypervisor.qemu.image")
+            updated_toml_str = """
+            [hypervisor.qemu]
+            image = "{new_image_path}"
+            """.format(
+                new_image_path=dst_img_path
+            )
+            update_toml(conf_file_path, updated_toml_str)
+        else:
+            updated_toml_str = """
+            [hypervisor.qemu]
+            initrd = "{new_initrd_path}"
+            """.format(
+                new_initrd_path=dst_initrd_path
+            )
+            update_toml(conf_file_path, updated_toml_str)
 
 
 def replace_shim(

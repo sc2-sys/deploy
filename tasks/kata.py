@@ -104,6 +104,9 @@ def hot_replace_agent(ctx, debug=False, runtime="qemu-snp-sc2"):
         dst_initrd_path=join(
             KATA_IMG_DIR, "kata-containers-initrd-confidential-sc2.img"
         ),
+        dst_img_path=join(
+            KATA_IMG_DIR, "kata-containers-confidential-sc2.img"
+        ),
         debug=debug,
         sc2=runtime in SC2_RUNTIMES,
         hot_replace=True,
