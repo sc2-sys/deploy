@@ -1,6 +1,7 @@
 from invoke import task
 from os.path import join
 from subprocess import run
+from tasks.util.cosign import sign_container_image
 from tasks.util.env import (
     APPS_SOURCE_DIR,
     GHCR_URL,
@@ -106,6 +107,9 @@ def do_push_to_local_registry(debug=False):
         if debug:
             print(result.stdout.decode("utf-8").strip())
 
+        # We also sign the container image
+        sign_container_image(local_registry_tag)
+
         # For nydus, we directly use `nydusify copy` as we cannot `docker pull`
         # a nydus image
         result = run(
@@ -128,3 +132,8 @@ def push_to_local_registry(ctx, debug=False):
     Build an app for its usage with the project
     """
     do_push_to_local_registry(debug=debug)
+
+
+@task
+def foo(ctx):
+    sign_container_image("sc2cr.io/applications/helloworld-py:unencrypted")

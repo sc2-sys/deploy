@@ -19,6 +19,11 @@ as one may think. At a very high level, Trustee releases secrets/resources
 in response to requests iff the request passes an associated _resource policy_
 and _attestation policy_.
 
+The most important (for us) of such policies is the [image security policy](
+https://github.com/confidential-containers/guest-components/blob/main/image-rs/src/config.rs#L42-L62).
+By setting an image security policy we force image-rs to apply the policy on
+any image pull we do.
+
 # TODO: this paragraph may not be true?
 This policy may (or may not) demand that the request presents a valid launch
 measurement, matching a user-provided one. As a consequence: no secret/resource

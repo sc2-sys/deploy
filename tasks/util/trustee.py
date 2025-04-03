@@ -1,6 +1,10 @@
 from os.path import join
 from re import search as re_search, sub as re_sub
-from tasks.util.env import KATA_CONFIG_DIR, PROJ_ROOT, get_node_url
+from subprocess import run
+from tasks.util.env import CONF_FILES_DIR, PROJ_ROOT, SC2_RUNTIMES, get_node_url
+from tasks.util.gc import GC_CDF_CONFIG_FILE_PATH
+from tasks.util.kata import replace_agent
+from tasks.util.registry import HOST_CERT_PATH
 from tasks.util.toml import read_value_from_toml, update_toml
 
 TRUSTEE_DIR = join(PROJ_ROOT, "trustee")
@@ -13,6 +17,8 @@ TRUSTEE_HOST_CONFIG_DIR = join(TRUSTEE_DIR, "dev-config")
 TRUSTEE_KBS_ROOT = join(TRUSTEE_DIR, "kbs")
 TRUSTEE_KBS_CONFIG_DIR = join(TRUSTEE_KBS_ROOT, "config")
 TRUSTEE_KBS_HOST_PORT = "50002"
+
+TRUSTEE_KBS_IMAGE_SECURITY_POLICY_URI = "kbs:///sc2/image-security-policy/signature"
 
 
 def get_kbs_ip():
@@ -67,6 +73,8 @@ def do_set_guest_attestation_mode(mode, runtime):
     io.katacontainers.config.hypervisor.kernel_params:
       "agent.guest_components_rest_api=resource
        agent.aa_kbc_params=cc_kbc::http://{trustee_kbs_ip}:{trustee_kbs_port}"
+
+    FIXME: nothing happens unless we associate an image_security_policy
     """
     supported_modes = ["on", "off"]
     if mode not in supported_modes:
@@ -74,19 +82,45 @@ def do_set_guest_attestation_mode(mode, runtime):
         print(f"ERROR: must be one in : {supported_modes}")
         exit(1)
 
-    conf_file_path = join(KATA_CONFIG_DIR, f"configuration-{runtime}.toml")
-    kernel_params = read_value_from_toml(
-        conf_file_path, "hypervisor.qemu.kernel_params"
-    )
-    updated_kernel_params = get_trustee_kernel_parameters(kernel_params, mode)
+    turn_on = mode == "on"
 
-    updated_toml_str = """
-    [hypervisor.qemu]
-    kernel_params = "{updated_kernel_params}"
-    """.format(
-        updated_kernel_params=updated_kernel_params
+    with open(HOST_CERT_PATH, "r") as fh:
+        root_cert = fh.read().strip()
+
+    # If on, set the security policy with an env. var, if not leave it empty
+    # same with the URL
+    cdh_config_vars = {
+        "SC2_KBC_URL": "http://{}:{}".format(get_kbs_ip(), TRUSTEE_KBS_HOST_PORT) if turn_on else "",
+        "SC2_IMAGE_SECURITY_POLICY_URI": TRUSTEE_KBS_IMAGE_SECURITY_POLICY_URI if turn_on else "",
+        "SC2_EXTRA_ROOT_CERTIFICATE": root_cert,
+    }
+
+    cdh_config_in = join(CONF_FILES_DIR, "cdh_config.toml.in")
+    tmp_conf_file = "/tmp/sc2_cdh_config.toml"
+    cmd = f"envsubst < {cdh_config_in} > {tmp_conf_file}"
+    run(cmd, shell=True, check=True, env=cdh_config_vars)
+
+    replace_agent(
+        sc2=runtime in SC2_RUNTIMES,
+        hot_replace=False,
+        extra_files={tmp_conf_file: {"path": GC_CDF_CONFIG_FILE_PATH, "mode": "w"}}
     )
-    update_toml(conf_file_path, updated_toml_str)
+#     conf_file_path = join(KATA_CONFIG_DIR, f"configuration-{runtime}.toml")
+#     kernel_params = read_value_from_toml(
+#         conf_file_path, "hypervisor.qemu.kernel_params"
+#     )
+#     updated_kernel_params = get_trustee_kernel_parameters(kernel_params, mode)
+#
+#     updated_toml_str = """
+#     [hypervisor.qemu]
+#     kernel_params = "{updated_kernel_params}"
+#     """.format(
+#         updated_kernel_params=updated_kernel_params
+#     )
+#     update_toml(conf_file_path, updated_toml_str)
+
+    # TODO: must update rootfs so that the CDH config specifies an
+    # image_security_policy
 
 
 # ------------------------------------------------------------------------------

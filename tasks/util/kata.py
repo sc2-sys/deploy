@@ -176,7 +176,7 @@ def copy_from_kata_workon_ctr(
         copy_from_ctr_image(KATA_IMAGE_TAG, [ctr_path], [host_path], requires_sudo=sudo)
 
 
-def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=False):
+def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=False, extra_files=None):
     """
     This function takes a directory as input, and generates the root-filesystem
     needed in SC2 at <tmp_rootfs_base_dir>/rootfs. The result can be consumed
@@ -255,7 +255,7 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
         KATA_AGENT_SOURCE_DIR if sc2 else KATA_BASELINE_AGENT_SOURCE_DIR,
         "target",
         "x86_64-unknown-linux-musl",
-        "debug",  # "release",
+        "release",
         "kata-agent",
     )
     copy_from_kata_workon_ctr(
@@ -334,40 +334,42 @@ def prepare_rootfs(tmp_rootfs_base_dir, debug=False, sc2=False, hot_replace=Fals
 
     # ----- Add extra files to the rootfs -----
 
-    extra_files = {
+    custom_rootfs_files = {
         "/etc/hosts": {"path": "/etc/hosts", "mode": "w"},
         HOST_CERT_PATH: {"path": "/etc/ssl/certs/ca-certificates.crt", "mode": "a"},
     }
 
     # Include any extra files that the caller may have provided
     if extra_files is not None:
-        for host_path in extra_files:
-            # Trim any absolute paths expressed as "guest" paths to be able to
-            # append the rootfs
-            rel_guest_path = extra_files[host_path]["path"]
-            if rel_guest_path.startswith("/"):
-                rel_guest_path = rel_guest_path[1:]
+        custom_rootfs_files.update(extra_files)
 
-            guest_path = join(tmp_rootfs_dir, rel_guest_path)
-            if not exists(dirname(guest_path)):
-                run(
-                    "sudo mkdir -p {}".format(dirname(guest_path)),
-                    shell=True,
-                    check=True,
-                )
+    for host_path in custom_rootfs_files:
+        # Trim any absolute paths expressed as "guest" paths to be able to
+        # append the rootfs
+        rel_guest_path = custom_rootfs_files[host_path]["path"]
+        if rel_guest_path.startswith("/"):
+            rel_guest_path = rel_guest_path[1:]
 
-            if exists(guest_path) and extra_files[host_path]["mode"] == "a":
-                run(
-                    'sudo sh -c "cat {} >> {}"'.format(host_path, guest_path),
-                    shell=True,
-                    check=True,
-                )
-            else:
-                run(
-                    "sudo cp {} {}".format(host_path, guest_path),
-                    shell=True,
-                    check=True,
-                )
+        guest_path = join(tmp_rootfs_dir, rel_guest_path)
+        if not exists(dirname(guest_path)):
+            run(
+                "sudo mkdir -p {}".format(dirname(guest_path)),
+                shell=True,
+                check=True,
+            )
+
+        if exists(guest_path) and custom_rootfs_files[host_path]["mode"] == "a":
+            run(
+                'sudo sh -c "cat {} >> {}"'.format(host_path, guest_path),
+                shell=True,
+                check=True,
+            )
+        else:
+            run(
+                "sudo cp {} {}".format(host_path, guest_path),
+                shell=True,
+                check=True,
+            )
 
 
 def replace_agent(
@@ -375,6 +377,7 @@ def replace_agent(
     debug=False,
     sc2=False,
     hot_replace=False,
+    extra_files=None,
 ):
     """
     Replace the kata-agent with a custom-built one
@@ -387,7 +390,7 @@ def replace_agent(
     tmp_rootfs_base_dir = "/tmp/sc2-rootfs-build-dir"
     tmp_rootfs_dir = join(tmp_rootfs_base_dir, "rootfs")
     tmp_rootfs_scripts_dir = join(tmp_rootfs_base_dir, "osbuilder")
-    prepare_rootfs(tmp_rootfs_base_dir, debug=debug, sc2=sc2, hot_replace=hot_replace)
+    prepare_rootfs(tmp_rootfs_base_dir, debug=debug, sc2=sc2, hot_replace=hot_replace, extra_files=extra_files)
 
     # ----- Pack rootfs into initrd using Kata's script -----
 

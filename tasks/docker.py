@@ -1,6 +1,5 @@
 from invoke import task
 from os.path import join
-from tasks.gc import build_gc_image
 from tasks.svsm import build_svsm_image, build_svsm_kernel_image, build_svsm_qemu_image
 from tasks.trustee import build_trustee_image
 from tasks.util.containerd import build_containerd_image
@@ -50,10 +49,6 @@ def build_all(ctx, nocache=False, push=False):
 
     print_dotted_line(f"Building containerd image (v{CONTAINERD_VERSION})")
     build_containerd_image(nocache, push, debug=False)
-    print("Success!")
-
-    print_dotted_line("Building guest-components image")
-    build_gc_image(nocache, push, debug=False)
     print("Success!")
 
     print_dotted_line(f"Building kata image (v{KATA_VERSION})")

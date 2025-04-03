@@ -1,0 +1,51 @@
+# ------------------------------------------------------------------------------
+# Confidential Data Hub Config File
+#
+# This configuration file configures the behaviour of the CDH, which in turn
+# determines the image-rs config. This file is meant to be placed at
+# `/etc/confidential-data-hub.conf` inside the guest's rootfs. It contains
+# various placeholders that we are meant to overwrite when copying this file
+# into a rootfs. As a consequence, we deliberately track it on git.
+#
+# This file is based on:
+# https://github.com/confidential-containers/guest-components/blob/main/confidential-data-hub/example.config.toml
+# ------------------------------------------------------------------------------
+
+socket = "unix:///run/confidential-containers/cdh.sock"
+
+# KBC related configs.
+[kbc]
+name = "cc_kbc"
+url = "${SC2_KBC_URL}"
+
+
+[image]
+
+# Sigstore config file URI for simple signing scheme.
+#
+# When `image_security_policy_uri` is set and `SimpleSigning` (signedBy) is
+# used in the policy, the signatures of the images would be used for image
+# signature validation. This policy will record where the signatures is.
+#
+# Now it supports two different forms:
+# - `KBS URI`: the sigstore config file will be fetched from KBS,
+# e.g. `kbs:///default/sigstore-config/test`.
+# - `Local Path`: the sigstore config file will be fetched from somewhere locally,
+# e.g. `file:///etc/simple-signing.yaml`.
+#
+# By default this value is not set.
+# TODO: i don't think we need a sigstore config?
+sigstore_config_uri = ""
+
+# SC2: we want to set the policy in the KBS, as it is likely to change
+# more often than the rootfs
+# TODO: remove me, should be something like: kbs:///sc2/image-security-policy/signature
+image_security_policy_uri = "${SC2_IMAGE_SECURITY_POLICY_URI}"
+
+# SC2: set the extra root certificates to use our local registry
+# TODO: check if by setting this, we don't need to use nativetls and others
+extra_root_certificates = [
+"""
+${SC2_EXTRA_ROOT_CERTIFICATE}
+"""
+]
