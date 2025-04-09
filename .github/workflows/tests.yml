@@ -45,7 +45,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - tee: [snp, tdx]
+          - tee: snp
+          - tee: tdx
 
     runs-on: [self-hosted, "${{ matrix.tee }}"]
     env:
