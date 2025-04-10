@@ -185,6 +185,7 @@ def install_bbolt(debug=False, clean=False):
     print_dotted_line("Installing bbolt")
 
     wait_for_containerd_socket()
+    # print_dotted_line("Dailing containerd socket success!")
 
     tmp_ctr_name = "bbolt_install"
     if is_ctr_running(tmp_ctr_name):
