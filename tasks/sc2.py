@@ -225,6 +225,7 @@ def deploy(ctx, debug=False, clean=False):
     host_kernel_version = get_host_kernel_version()
     host_kernel_expected_prefix = get_host_kernel_expected_prefix()
     if not host_kernel_version.startswith(host_kernel_expected_prefix):
+        # (host_kernel_version.startswith("6.8.0") and host_kernel_version.endswith("intel")) or (host_kernel_version.startswith("ss")
         print(
             f"ERROR: wrong host kernel: expected prefix {host_kernel_expected_prefix} "
             f"- got {host_kernel_version}"
