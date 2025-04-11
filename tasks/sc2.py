@@ -281,11 +281,12 @@ def deploy(ctx, debug=False, clean=False):
 
     # Build and install containerd
     containerd_install(debug=debug, clean=clean)
-    bbolt_install(debug=True, clean=clean) # causing mad errors -> need to be fixed
+    bbolt_install(debug=True, clean=clean) # hardcoded proxy env var into docker, needs to be fixed later
 
     # Install k8s tooling (including k9s)
     k8s_tooling_install(debug=debug, clean=clean)
     k9s_install(debug=debug)
+    print("...................................finished installing k9s!!!..............................")
 
     # Create a single-node k8s cluster
     k8s_create(debug=debug)
