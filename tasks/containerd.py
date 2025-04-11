@@ -182,10 +182,10 @@ def install(debug=False, clean=False):
 
 
 def install_bbolt(debug=False, clean=False):
+    # Installs bbolt (cli-tool) by using a temporary docker container that builds the binary using Go
     print_dotted_line("Installing bbolt")
 
     wait_for_containerd_socket()
-    # print_dotted_line("Dailing containerd socket success!")
 
     tmp_ctr_name = "bbolt_install"
     if is_ctr_running(tmp_ctr_name):
@@ -196,11 +196,22 @@ def install_bbolt(debug=False, clean=False):
         result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
         assert result.returncode == 0
 
+    # result = run(
+    #     f"docker run -d -it --name {tmp_ctr_name} golang:{GO_VERSION} bash",
+    #     shell=True,
+    #     capture_output=True,
+    # )
+
     result = run(
-        f"docker run -d -it --name {tmp_ctr_name} golang:{GO_VERSION} bash",
-        shell=True,
-        capture_output=True,
-    )
+    f"docker run -d -it --name {tmp_ctr_name} "
+    f"-e HTTP_PROXY=http://133.9.80.129:3128 "
+    f"-e HTTPS_PROXY=http://133.9.80.129:3128 "
+    f"-e FTP_PROXY=http://133.9.80.129:3128 "
+    f"-e NO_PROXY=localhost,127.0.0.1,.kasahara.cs.waseda.ac.jp,133.9.80.0/26,133.9.80.128/26,192.168.50.0/23 "
+    f"golang:{GO_VERSION} bash",
+    shell=True,
+    capture_output=True,
+)
     if result.returncode != 0:
         print(result.stderr.decode("utf-8").strip()),
         rm_container()
