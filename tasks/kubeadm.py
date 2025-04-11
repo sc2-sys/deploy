@@ -23,7 +23,7 @@ def create(debug=False):
     Create a single-node k8s cluster
     """
     print_dotted_line(f"Creating K8s (v{K8S_VERSION}) cluster using kubeadm")
-
+    print("starting k8s cluster")
     # Start the cluster
     kubeadm_cmd = "sudo kubeadm init --config {}".format(K8S_ADMIN_FILE)
     if debug:
