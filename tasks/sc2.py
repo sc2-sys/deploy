@@ -289,7 +289,7 @@ def deploy(ctx, debug=False, clean=False):
     k9s_install(debug=debug)
 
     # Create a single-node k8s cluster
-    k8s_create(debug=True)
+    k8s_create(debug=debug)
 
     # Install the CoCo operator as well as the CC-runtimes
     operator_install(debug=debug)
