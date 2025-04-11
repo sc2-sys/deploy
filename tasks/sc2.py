@@ -224,7 +224,7 @@ def deploy(ctx, debug=False, clean=False):
     # Fail-fast if we are not using the expected host kernel
     host_kernel_version = get_host_kernel_version()
     host_kernel_expected_prefix = get_host_kernel_expected_prefix()
-    if not host_kernel_version.startswith("6.8.0") and host_kernel_version.endswith("intel"):
+    if not host_kernel_version.startswith(host_kernel_expected_prefix):
         print(
             f"ERROR: wrong host kernel: expected prefix {host_kernel_expected_prefix} "
             f"- got {host_kernel_version}"
@@ -281,15 +281,14 @@ def deploy(ctx, debug=False, clean=False):
 
     # Build and install containerd
     containerd_install(debug=debug, clean=clean)
-    bbolt_install(debug=True, clean=clean) # hardcoded proxy env var into docker, needs to be fixed later
+    bbolt_install(debug=debug, clean=clean)
 
     # Install k8s tooling (including k9s)
     k8s_tooling_install(debug=debug, clean=clean)
     k9s_install(debug=debug)
-    print("...................................finished installing k9s!!!..............................")
 
     # Create a single-node k8s cluster
-    k8s_create(debug=debug)
+    k8s_create(debug=True)
 
     # Install the CoCo operator as well as the CC-runtimes
     operator_install(debug=debug)
