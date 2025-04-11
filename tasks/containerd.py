@@ -211,7 +211,8 @@ def install_bbolt(debug=False, clean=False):
     f"golang:{GO_VERSION} bash",
     shell=True,
     capture_output=True,
-)
+    )
+    
     if result.returncode != 0:
         print(result.stderr.decode("utf-8").strip()),
         rm_container()

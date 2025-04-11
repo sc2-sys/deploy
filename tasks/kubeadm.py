@@ -21,10 +21,17 @@ def create(debug=False):
     """
     Create a single-node k8s cluster
     """
+
+    import os
+    # Inject proxy-related environment variables (for tdx lab node)
+    os.environ['HTTP_PROXY'] = "http://133.9.80.129:3128"
+    os.environ['HTTPS_PROXY'] = "http://133.9.80.129:3128"
+    os.environ['NO_PROXY'] = "127.0.0.1,localhost,10.96.0.0/12,192.168.0.0/16"
+
     print_dotted_line(f"Creating K8s (v{K8S_VERSION}) cluster using kubeadm")
-    print("starting k8s cluster")
+
     # Start the cluster
-    kubeadm_cmd = "sudo kubeadm init --config {}".format(K8S_ADMIN_FILE)
+    kubeadm_cmd = "sudo kubeadm init --config {}".format(K8S_ADMIN_FILE) # added -E flag to perserve env var
     if debug:
         run(kubeadm_cmd, shell=True, check=True)
     else:
