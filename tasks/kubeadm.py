@@ -16,7 +16,7 @@ from tasks.util.kubeadm import (
 )
 from tasks.util.versions import CALICO_VERSION, K8S_VERSION
 from time import sleep
-
+print("HELLO")
 
 def create(debug=False):
     """
