@@ -289,6 +289,7 @@ def deploy(ctx, debug=False, clean=False):
     k9s_install(debug=True)
 
     # Create a single-node k8s cluster
+    run("sudo kubeadm reset -f", shell=True, capture_output=True)
     k8s_create(debug=True)
 
     # Install the CoCo operator as well as the CC-runtimes
