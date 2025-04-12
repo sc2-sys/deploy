@@ -424,7 +424,7 @@ def set_log_level(ctx, log_level):
                 log_level, allowed_log_levels
             )
         )
-        return
+        return 
 
     containerd_set_log_level(log_level)
     kata_set_log_level(log_level)
