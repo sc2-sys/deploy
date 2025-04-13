@@ -30,6 +30,10 @@ def create(debug=False):
 
     print_dotted_line(f"Creating K8s (v{K8S_VERSION}) cluster using kubeadm")
 
+    # Resetting kubeadm
+    print("......reseting kubeadm......")
+    run("sudo kubeadm reset -f")
+
     # Start the cluster
     kubeadm_cmd = "sudo -E kubeadm init --config {}".format(K8S_ADMIN_FILE) # added -E flag to perserve env var
     if debug:
