@@ -121,6 +121,7 @@ def install(skip_push=False, debug=False):
 
     # Knative requires a functional LoadBalancer, so we use MetaLB
     install_metallb(debug=debug)
+    print_dotted_line("Metal Load Balancer Successfully Installed") # <------------- changed here
 
     # -----
     # Install Knative Serving
@@ -129,10 +130,12 @@ def install(skip_push=False, debug=False):
     # Create the knative CRDs
     kube_cmd = "apply -f {}".format(join(KNATIVE_SERVING_BASE_URL, "serving-crds.yaml"))
     run_kubectl_command(kube_cmd, capture_output=not debug)
+    print_dotted_line("knative CRDs created") # <------------- changed here
 
     # Install the core serving components
     kube_cmd = "apply -f {}".format(join(KNATIVE_SERVING_BASE_URL, "serving-core.yaml"))
     run_kubectl_command(kube_cmd, capture_output=not debug)
+    print_dotted_line("Core serving components installed") # <------------- changed here
 
     # Wait for the core components to be ready
     wait_for_pods_in_ns(
@@ -159,6 +162,7 @@ def install(skip_push=False, debug=False):
         expected_num_of_pods=1,
         debug=debug,
     )
+    print_dotted_line("pods installed, Knative eventing installing starting") # <------------- changed here
 
     # -----
     # Install Knative Eventing
@@ -169,12 +173,14 @@ def install(skip_push=False, debug=False):
         join(KNATIVE_EVENTING_BASE_URL, "eventing-crds.yaml")
     )
     run_kubectl_command(kube_cmd, capture_output=not debug)
+    print_dotted_line("Knative CRDs created") # <------------- changed here
 
     # Install the core serving components
     kube_cmd = "apply -f {}".format(
         join(KNATIVE_EVENTING_BASE_URL, "eventing-core.yaml")
     )
     run_kubectl_command(kube_cmd, capture_output=not debug)
+    print_dotted_line("Core serving components installed") # <------------- changed here
 
     # Wait for the core components to be ready
     wait_for_pods_in_ns(
