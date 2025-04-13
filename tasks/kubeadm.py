@@ -31,7 +31,7 @@ def create(debug=False):
     print_dotted_line(f"Creating K8s (v{K8S_VERSION}) cluster using kubeadm")
 
     # Resetting kubeadm
-    print("......reseting kubeadm......")
+    print_dotted_line("......reseting kubeadm......")
     run("sudo kubeadm reset -f", shell=True)
 
     # Start the cluster
@@ -43,7 +43,7 @@ def create(debug=False):
         assert out.returncode == 0, "Error running cmd: {} (error: {})".format(
             kubeadm_cmd, out.stderr
         )
-    print("......Cluster Started!......") # debug print statement
+    print_dotted_line("......Cluster Started!......") # debug print statement
 
     if not exists(K8S_CONFIG_DIR):
         makedirs(K8S_CONFIG_DIR)
@@ -55,7 +55,7 @@ def create(debug=False):
         geteuid(), getegid(), KUBEADM_KUBECONFIG_FILE
     )
     run(chown_cmd, shell=True, check=True)
-    print("......config file copied and permissions changed!......") # debug print statement
+    print_dotted_line("......config file copied and permissions changed!......") # debug print statement
 
     # Wait for the node to be in ready state
     def get_node_state():
@@ -70,11 +70,11 @@ def create(debug=False):
     actual_node_state = get_node_state()
     while expected_node_state != actual_node_state:
         if debug:
-            print("Waiting for node to be ready...")
+            print_dotted_line("Waiting for node to be ready...")
 
         sleep(3)
         actual_node_state = get_node_state()
-    print("......Node in ready state!......") # debug print statement
+    print_dotted_line("......Node in ready state!......") # debug print statement
 
     # Untaint the node so that pods can be scheduled on it
     node_name = get_node_name()
@@ -82,55 +82,55 @@ def create(debug=False):
         node_label = "node-role.kubernetes.io/{}:NoSchedule-".format(role)
         taint_cmd = "taint nodes {} {}".format(node_name, node_label)
         run_kubectl_command(taint_cmd, capture_output=not debug)
-    print("......Node untainted!......") # debug print statement
+    print_dotted_line("......Node untainted!......") # debug print statement
 
     # In addition, make sure the node has the worker label (required by CoCo)
     node_label = "node.kubernetes.io/worker="
     run_kubectl_command(
         "label node {} {}".format(node_name, node_label), capture_output=not debug
     )
-    print("......Added a Node Worker Label!......") # debug print statement
+    print_dotted_line("......Added a Node Worker Label!......") # debug print statement
 
     # Configure Calico
-    print("......Started to configure Calico!......") # debug print statement
+    print_dotted_line("......Started to configure Calico!......") # debug print statement
     calico_url = "https://raw.githubusercontent.com/projectcalico/calico"
     calico_url += f"/v{CALICO_VERSION}/manifests"
     run_kubectl_command(
         f"create -f {calico_url}/tigera-operator.yaml", capture_output=not debug
     )
-    print("......tigera-operator created!......") # debug print statement
+    print_dotted_line("......tigera-operator created!......") # debug print statement
     run_kubectl_command(
         f"create -f {calico_url}/custom-resources.yaml", capture_output=not debug
     )
-    print("......custom-resources created!......") # debug print statement
+    print_dotted_line("......custom-resources created!......") # debug print statement
     wait_for_pods_in_ns(
         "calico-system",
         label="app.kubernetes.io/name=csi-node-driver",
         debug=debug,
         expected_num_of_pods=1,
     )
-    print("......csi-node driver......") # debug print statement
+    print_dotted_line("......csi-node driver......") # debug print statement
     wait_for_pods_in_ns(
         "calico-system",
         label="app.kubernetes.io/name=calico-typha",
         debug=debug,
         expected_num_of_pods=1,
     )
-    print("......calico typha......") # debug print statement
+    print_dotted_line("......calico typha......") # debug print statement
     wait_for_pods_in_ns(
         "calico-system",
         label="app.kubernetes.io/name=calico-node",
         debug=debug,
         expected_num_of_pods=1,
     )
-    print("......calico node......") # debug print statement
+    print_dotted_line("......calico node......") # debug print statement
     wait_for_pods_in_ns(
         "calico-system",
         label="app.kubernetes.io/name=calico-kube-controllers",
         expected_num_of_pods=1,
         debug=debug,
     )
-    print("......calico kube controllers......") # debug print statement
+    print_dotted_line("......calico kube controllers......") # debug print statement
     wait_for_pods_in_ns(
         "calico-apiserver",
         label="app.kubernetes.io/name=calico-apiserver",
@@ -138,7 +138,7 @@ def create(debug=False):
         expected_num_of_pods=2,
     )
 
-    print("Success!")
+    print_dotted_line("Success!")
 
 
 def destroy(debug=False):
