@@ -303,10 +303,10 @@ def deploy(ctx, debug=False, clean=False):
 
     # Start a local docker registry (must happen before knative installation,
     # as we rely on it to host our sidecar image)
-    start_local_registry(debug=debug, clean=clean)
+    start_local_registry(debug=True, clean=clean)
 
     # Install Knative
-    knative_install(debug=debug)
+    knative_install(debug=True)
 
     # Install an up-to-date version of OVMF (the one currently shipped with
     # CoCo is not enough to run on 6.11 and QEMU 9.1)
