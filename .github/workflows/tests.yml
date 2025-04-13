@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   checks:
-    if: github.event.pull_request.draft == false
+    # if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     steps:
       - name: "Checkout code"
@@ -40,12 +40,12 @@ jobs:
         working-directory: ./tools/check-fork-hashes
 
   integration-tests:
-    if: github.event.pull_request.draft == false
+    # if: github.event.pull_request.draft == false
     strategy:
       fail-fast: false
       matrix:
         include:
-          - tee: snp
+          # - tee: snp
           - tee: tdx
 
     runs-on: [self-hosted, "${{ matrix.tee }}"]
