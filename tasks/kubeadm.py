@@ -103,7 +103,7 @@ def create(debug=False):
         f"create -f {calico_url}/custom-resources.yaml", capture_output=not debug
     )
     print_dotted_line("......custom-resources created!......") # debug print statement
-    print_dotted_line("here starts the error")
+    print_dotted_line("here starts the error") #main debug statement
     wait_for_pods_in_ns(
         "calico-system",
         label="app.kubernetes.io/name=csi-node-driver",
