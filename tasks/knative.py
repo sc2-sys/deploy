@@ -107,7 +107,7 @@ def install_metallb(debug=False):
     metallb_conf_file = join(CONF_FILES_DIR, "metallb_config.yaml")
     run_kubectl_command(
         "apply -f {}".format(metallb_conf_file), capture_output=not debug
-    )
+    ) 
 
 
 def install(skip_push=False, debug=False):
