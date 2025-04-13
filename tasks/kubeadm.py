@@ -32,7 +32,7 @@ def create(debug=False):
 
     # Resetting kubeadm
     print("......reseting kubeadm......")
-    run("sudo kubeadm reset -f")
+    run("sudo kubeadm reset -f", shell=True)
 
     # Start the cluster
     kubeadm_cmd = "sudo -E kubeadm init --config {}".format(K8S_ADMIN_FILE) # added -E flag to perserve env var
