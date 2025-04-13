@@ -26,7 +26,7 @@ def create(debug=False):
     # Inject proxy-related environment variables (for tdx lab node)
     os.environ['HTTP_PROXY'] = "http://133.9.80.129:3128"
     os.environ['HTTPS_PROXY'] = "http://133.9.80.129:3128"
-    os.environ['NO_PROXY'] = "localhost,127.0.0.1,.kasahara.cs.waseda.ac.jp,133.9.80.0/26,133.9.80.128/26,192.168.50.0/23,10.96.0.0/12,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,.svc,.cluster.local"
+    os.environ['NO_PROXY'] = "127.0.0.1,localhost,10.96.0.0/12,192.168.0.0/16,192.168.50.0/23"
 
     print_dotted_line(f"Creating K8s (v{K8S_VERSION}) cluster using kubeadm")
 
