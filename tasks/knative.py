@@ -83,6 +83,10 @@ def install_metallb(debug=False):
     """
     Install the MetalLB load balancer
     """
+    import os
+    os.environ["no_proxy"] = "192.168.50.49,localhost,127.0.0.1"
+    os.environ["NO_PROXY"] = "192.168.50.49,localhost,127.0.0.1"
+    
     # First deploy the load balancer
     metalb_version = "0.13.11"
     metalb_url = "https://raw.githubusercontent.com/metallb/metallb/"
