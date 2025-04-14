@@ -289,7 +289,7 @@ def deploy(ctx, debug=False, clean=False):
     k9s_install(debug=debug)
 
     # Create a single-node k8s cluster
-    k8s_create(debug=debug) 
+    k8s_create(debug=True)
 
     # Install the CoCo operator as well as the CC-runtimes
     operator_install(debug=debug)
@@ -299,7 +299,7 @@ def deploy(ctx, debug=False, clean=False):
     nydus_snapshotter_install(debug=debug, clean=clean)
 
     # Install the nydusify tool
-    nydus_install() 
+    nydus_install()
 
     # Start a local docker registry (must happen before knative installation,
     # as we rely on it to host our sidecar image)
@@ -312,7 +312,7 @@ def deploy(ctx, debug=False, clean=False):
     # CoCo is not enough to run on 6.11 and QEMU 9.1)
     print_dotted_line(f"Installing OVMF ({OVMF_VERSION})")
     ovmf_install()
-    print("Success!") 
+    print("Success!")
 
     # Update SNP class to use default QEMU (we use host kernel 6.11, so we
     # can use upstream QEMU 9.1). We do this update before generating the SC2
