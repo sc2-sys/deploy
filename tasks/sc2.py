@@ -299,7 +299,7 @@ def deploy(ctx, debug=False, clean=False):
     nydus_snapshotter_install(debug=debug, clean=clean)
 
     # Install the nydusify tool
-    nydus_install()
+    nydus_install() 
 
     # Start a local docker registry (must happen before knative installation,
     # as we rely on it to host our sidecar image)
