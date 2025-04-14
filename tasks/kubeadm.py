@@ -92,7 +92,7 @@ def create(debug=False):
     run_kubectl_command(
         f"create -f {calico_url}/custom-resources.yaml", capture_output=not debug
     )
-
+    print_dotted_line("run kubectl commands completed!") # CHANGED HERE
     wait_for_pods_in_ns(
         "calico-system",
         label="app.kubernetes.io/name=csi-node-driver",
