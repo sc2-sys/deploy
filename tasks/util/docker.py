@@ -130,4 +130,4 @@ def pull_artifact_images(debug=False):
         if debug:
             print(result.stdout.decode("utf-8").strip())
 
-    print("Success!")   
+    print("Success!")    
