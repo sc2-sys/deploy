@@ -312,7 +312,7 @@ def deploy(ctx, debug=False, clean=False):
     # CoCo is not enough to run on 6.11 and QEMU 9.1)
     print_dotted_line(f"Installing OVMF ({OVMF_VERSION})")
     ovmf_install()
-    print("Success!")
+    print("Success!") 
 
     # Update SNP class to use default QEMU (we use host kernel 6.11, so we
     # can use upstream QEMU 9.1). We do this update before generating the SC2
