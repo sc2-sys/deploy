@@ -17,15 +17,21 @@ from tasks.util.kubeadm import (
 from tasks.util.versions import CALICO_VERSION, K8S_VERSION
 from time import sleep
 
-
 def create(debug=False):
     """
     Create a single-node k8s cluster
     """
+
+    import os
+    # Inject proxy-related environment variables (for tdx lab node)ß
+    os.environ['HTTP_PROXY'] = "http://133.9.80.129:3128"
+    os.environ['HTTPS_PROXY'] = "http://133.9.80.129:3128"
+    os.environ['NO_PROXY'] = "localhost,127.0.0.1,10.96.0.0/12,192.168.0.0/16,.svc,.cluster.local,192.168.50.49,tdx0" 
+
     print_dotted_line(f"Creating K8s (v{K8S_VERSION}) cluster using kubeadm")
 
     # Start the cluster
-    kubeadm_cmd = "sudo kubeadm init --config {}".format(K8S_ADMIN_FILE)
+    kubeadm_cmd = "sudo -E kubeadm init --v=5 --config {}".format(K8S_ADMIN_FILE) # added -E flag to perserve env var
     if debug:
         run(kubeadm_cmd, shell=True, check=True)
     else:
@@ -58,7 +64,7 @@ def create(debug=False):
     actual_node_state = get_node_state()
     while expected_node_state != actual_node_state:
         if debug:
-            print("Waiting for node to be ready...")
+            print_dotted_line("Waiting for node to be ready...")
 
         sleep(3)
         actual_node_state = get_node_state()
@@ -82,33 +88,39 @@ def create(debug=False):
     run_kubectl_command(
         f"create -f {calico_url}/tigera-operator.yaml", capture_output=not debug
     )
+
     run_kubectl_command(
         f"create -f {calico_url}/custom-resources.yaml", capture_output=not debug
     )
+    print_dotted_line("run kubectl commands completed!") # CHANGED HERE
     wait_for_pods_in_ns(
         "calico-system",
         label="app.kubernetes.io/name=csi-node-driver",
         debug=debug,
         expected_num_of_pods=1,
     )
+
     wait_for_pods_in_ns(
         "calico-system",
         label="app.kubernetes.io/name=calico-typha",
         debug=debug,
         expected_num_of_pods=1,
     )
+
     wait_for_pods_in_ns(
         "calico-system",
         label="app.kubernetes.io/name=calico-node",
         debug=debug,
         expected_num_of_pods=1,
     )
+
     wait_for_pods_in_ns(
         "calico-system",
         label="app.kubernetes.io/name=calico-kube-controllers",
         expected_num_of_pods=1,
         debug=debug,
     )
+
     wait_for_pods_in_ns(
         "calico-apiserver",
         label="app.kubernetes.io/name=calico-apiserver",

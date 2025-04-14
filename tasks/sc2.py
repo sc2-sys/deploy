@@ -225,6 +225,7 @@ def deploy(ctx, debug=False, clean=False):
     host_kernel_version = get_host_kernel_version()
     host_kernel_expected_prefix = get_host_kernel_expected_prefix()
     if not host_kernel_version.startswith(host_kernel_expected_prefix):
+        # (host_kernel_version.startswith("6.8.0") and host_kernel_version.endswith("intel")) or (host_kernel_version.startswith("ss")
         print(
             f"ERROR: wrong host kernel: expected prefix {host_kernel_expected_prefix} "
             f"- got {host_kernel_version}"
@@ -288,7 +289,7 @@ def deploy(ctx, debug=False, clean=False):
     k9s_install(debug=debug)
 
     # Create a single-node k8s cluster
-    k8s_create(debug=debug)
+    k8s_create(debug=True)
 
     # Install the CoCo operator as well as the CC-runtimes
     operator_install(debug=debug)
@@ -298,14 +299,14 @@ def deploy(ctx, debug=False, clean=False):
     nydus_snapshotter_install(debug=debug, clean=clean)
 
     # Install the nydusify tool
-    nydus_install()
+    nydus_install() 
 
     # Start a local docker registry (must happen before knative installation,
     # as we rely on it to host our sidecar image)
-    start_local_registry(debug=debug, clean=clean)
+    start_local_registry(debug=True, clean=clean)
 
     # Install Knative
-    knative_install(debug=debug)
+    knative_install(debug=True)
 
     # Install an up-to-date version of OVMF (the one currently shipped with
     # CoCo is not enough to run on 6.11 and QEMU 9.1)
@@ -421,7 +422,7 @@ def set_log_level(ctx, log_level):
                 log_level, allowed_log_levels
             )
         )
-        return
+        return 
 
     containerd_set_log_level(log_level)
     kata_set_log_level(log_level)
