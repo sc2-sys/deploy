@@ -49,6 +49,12 @@ else
     echo "sc2-deploy: WARN: neither SNP nor TDX is enabled"
 fi
 
+if [ "$(sudo dmidecode -s system-manufacturer 2>/dev/null)" == "Microsoft Corporation" ]; then
+    export SC2_ON_AZURE="yes"
+else
+    export SC2_ON_AZURE="no"
+fi
+
 # ----------------------------------
 # VM cache config
 # ----------------------------------
@@ -71,11 +77,17 @@ export PS1="(sc2-deploy) $PS1"
 # Splash
 # -----------------------------
 
+if [ "$SC2_ON_AZURE" == "yes" ]; then
+    tee_str="${SC2_TEE}-azure"
+else
+    tee_str="${SC2_TEE}"
+fi
+
 echo ""
 echo "----------------------------------"
 echo "CLI for SC2 Deployment Scripts"
 echo "CoCo Version: ${COCO_VERSION}"
-echo "TEE: ${SC2_TEE}"
+echo "TEE: ${tee_str}"
 echo "----------------------------------"
 echo ""
 

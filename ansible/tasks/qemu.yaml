@@ -1,0 +1,14 @@
+---
+
+- name: "Download the QEMU package with Azure's SNP patches"
+  get_url:
+    url: "https://github.com/jepio/AMDSEV/releases/download/v2024.02.24/snp-qemu_2024.10.28-0_amd64.deb"
+    dest: "/tmp/snp-qemu.deb"
+    mode: '0644'
+
+- name: "Install the new QEMU package"
+  become: true
+  apt:
+    deb: "/tmp/snp-qemu.deb"
+    state: present
+

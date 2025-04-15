@@ -1,0 +1,25 @@
+---
+
+# Currently the provisioned VM image for CoCo on Azure VMs uses Ubuntu 20.04
+# so we need to add an APT repository to install python3.10
+# - name: "Add deadsnakes APT repository"
+#   become: yes
+#   apt_repository:
+#     repo: "ppa:deadsnakes/ppa"
+
+- name: "Install APT depdencencies"
+  become: yes
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg2
+      - libssl-dev
+      - pkg-config
+      - software-properties-common
+      - python3.10-dev
+      - python3-pip
+      - python3.10-venv
+      - unzip
+    update_cache: yes

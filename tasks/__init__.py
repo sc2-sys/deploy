@@ -1,5 +1,6 @@
 from invoke import Collection
 
+from . import azure
 from . import coco
 from . import containerd
 from . import cosign
@@ -26,6 +27,7 @@ from . import skopeo
 from . import svsm
 
 ns = Collection(
+    azure,
     coco,
     containerd,
     cosign,
