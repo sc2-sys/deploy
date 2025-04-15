@@ -78,9 +78,9 @@ export PS1="(sc2-deploy) $PS1"
 # -----------------------------
 
 if [ "$SC2_ON_AZURE" == "yes" ]; then
-    tee_str="${TEE}-azure"
+    tee_str="${SC2_TEE}-azure"
 else
-    tee_str="${TEE}"
+    tee_str="${SC2_TEE}"
 fi
 
 echo ""
