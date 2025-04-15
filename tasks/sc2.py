@@ -310,10 +310,9 @@ def deploy(ctx, debug=False, clean=False):
 
     # Install an up-to-date version of OVMF (the one currently shipped with
     # CoCo is not enough to run on 6.11 and QEMU 9.1)
-    if not on_azure():
-        print_dotted_line(f"Installing OVMF ({OVMF_VERSION})")
-        ovmf_install()
-        print("Success!")
+    print_dotted_line(f"Installing OVMF ({OVMF_VERSION})")
+    ovmf_install()
+    print("Success!")
 
     # Update SNP class to use default QEMU (we use host kernel 6.11, so we
     # can use upstream QEMU 9.1). We do this update before generating the SC2
@@ -341,7 +340,9 @@ def deploy(ctx, debug=False, clean=False):
         path = "{qemu_path}"
         valid_hypervisor_paths = [ "{qemu_path}" ]
         disable_nesting_checks = true
-        """.format(qemu_path=qemu_path)
+        """.format(
+            qemu_path=qemu_path
+        )
         update_toml(
             join(KATA_CONFIG_DIR, "configuration-qemu-snp.toml"),
             updated_toml_str,

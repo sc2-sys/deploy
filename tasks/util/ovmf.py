@@ -16,7 +16,10 @@ def build_ovmf_image(nocache, push, debug=True):
     build_image(
         OVMF_IMAGE_TAG,
         join(PROJ_ROOT, "docker", "ovmf.dockerfile"),
-        build_args={"OVMF_VERSION": OVMF_VERSION, "OVMF_VERSION_AZURE": OVMF_VERSION_AZURE},
+        build_args={
+            "OVMF_VERSION": OVMF_VERSION,
+            "OVMF_VERSION_AZURE": OVMF_VERSION_AZURE,
+        },
         nocache=nocache,
         push=push,
         debug=debug,

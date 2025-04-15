@@ -38,10 +38,13 @@ RUN mkdir -p ${CODE_DIR} \
         https://github.com/tianocore/edk2.git \
         ${CODE_DIR} \
     && cd ${CODE_DIR} \
+    && sed -i \
+        's#https://github\.com/Zeex/subhook\.git#https://github.com/tianocore/edk2-subhook.git#g' \
+        .gitmodules \
     && git submodule update --init \
     && export PYTHON3_ENABLE=TRUE \
     && export PYTHON_COMMAND=python3 \
     && make -j $(nproc) -C BaseTools/ \
     && . ./edksetup.sh --reconfig \
-    && touch  OvmfPkg/AmdSev/Grub/grub.efi
-    # && build -a X64 -b RELEASE -t GCC5 -p OvmfPkg/AmdSev/AmdSevX64.dsc
+    && touch  OvmfPkg/AmdSev/Grub/grub.efi \
+    && build -a X64 -b RELEASE -t GCC5 -p OvmfPkg/AmdSev/AmdSevX64.dsc
