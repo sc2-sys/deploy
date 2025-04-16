@@ -63,6 +63,7 @@ from tasks.util.versions import (
 )
 from time import sleep
 
+from tasks.util.proxy import configure_docker_proxy, configure_containerd_proxy, configure_kubelet_proxy, check_return_proxy
 
 def start_vm_cache(debug=False):
     vm_cache_dir = join(PROJ_ROOT, "vm-cache")
@@ -215,6 +216,10 @@ def deploy(ctx, debug=False, clean=False):
     """
     Deploy an SC2-enabled bare-metal Kubernetes cluster
     """
+    # If proxy environment variables present, apply to docker
+    if check_return_proxy():
+        configure_docker_proxy()
+
     # Fail-fast if deployment exists
     if exists(SC2_DEPLOYMENT_FILE):
         print(f"ERROR: SC2 already deployed (file {SC2_DEPLOYMENT_FILE} exists)")
@@ -305,7 +310,7 @@ def deploy(ctx, debug=False, clean=False):
     start_local_registry(debug=debug, clean=clean)
 
     # Install Knative
-    knative_install(debug=debug)
+    # knative_install(debug=debug)
 
     # Install an up-to-date version of OVMF (the one currently shipped with
     # CoCo is not enough to run on 6.11 and QEMU 9.1)

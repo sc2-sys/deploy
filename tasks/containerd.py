@@ -33,6 +33,7 @@ CONTAINERD_BINARY_NAMES = [
 CONTAINERD_CTR_BINPATH = "/go/src/github.com/sc2-sys/containerd/bin"
 CONTAINERD_HOST_BINPATH = "/usr/bin"
 
+from tasks.util.proxy import check_return_proxy, configure_containerd_proxy
 
 @task
 def build(ctx, nocache=False, push=False):
@@ -159,6 +160,9 @@ def install(debug=False, clean=False):
         )
         config_cmd = "sudo bash -c '{}'".format(config_cmd)
         run(config_cmd, shell=True, check=True)
+        # Install proxy for containerd
+        if check_return_proxy():
+            configure_containerd_proxy()
 
     # Restart containerd service
     run("sudo service containerd start", shell=True, check=True)

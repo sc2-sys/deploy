@@ -119,7 +119,7 @@ def start(debug=False, clean=False):
     must_write = not any([dns_line in line for line in dns_contents])
 
     if must_write:
-        actual_dns_line = "\n# CSG: DNS entry for local registry\n{}".format(dns_line)
+        actual_dns_line = "\n# SC2: DNS entry for local registry\n{}".format(dns_line)
         write_cmd = "sudo sh -c \"echo '{}' >> {}\"".format(actual_dns_line, dns_file)
         run(write_cmd, shell=True, check=True)
 
