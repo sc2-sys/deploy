@@ -211,171 +211,180 @@ def install_sc2_runtime(debug=False):
 
 
 @task(default=True)
-def deploy(ctx, debug=False, clean=False):
+def deploy(ctx, debug=False, clean=False, cleanup_proxies=False):
     """
     Deploy an SC2-enabled bare-metal Kubernetes cluster
     """
-    # Fail-fast if deployment exists
-    if exists(SC2_DEPLOYMENT_FILE):
-        print(f"ERROR: SC2 already deployed (file {SC2_DEPLOYMENT_FILE} exists)")
-        print("ERROR: only remove deployment file if you know what you are doing!")
-        exit(1)
+    # Apply proxy configurations first thing
+    from tasks.util.proxy import configure_containerd_proxy, cleanup_proxy_configs
+    configure_containerd_proxy()
 
-    # Fail-fast if we are not using the expected host kernel
-    host_kernel_version = get_host_kernel_version()
-    host_kernel_expected_prefix = get_host_kernel_expected_prefix()
-    if not host_kernel_version.startswith(host_kernel_expected_prefix):
-        print(
-            f"ERROR: wrong host kernel: expected prefix {host_kernel_expected_prefix} "
-            f"- got {host_kernel_version}"
-        )
-        print("ERROR: install the right host kernel (./docs/host_kernel.md)")
-        exit(1)
+    try:
+        # Fail-fast if deployment exists
+        if exists(SC2_DEPLOYMENT_FILE):
+            print(f"ERROR: SC2 already deployed (file {SC2_DEPLOYMENT_FILE} exists)")
+            print("ERROR: only remove deployment file if you know what you are doing!")
+            exit(1)
 
-    if clean:
-        # Remove all directories that we populate and modify
-        for nuked_dir in [
-            COCO_ROOT,
-            CONTAINERD_CONFIG_ROOT,
-            HOST_CERT_DIR,
-            KATA_ROOT,
-            SC2_CONFIG_DIR,
-        ]:
+        # Fail-fast if we are not using the expected host kernel
+        host_kernel_version = get_host_kernel_version()
+        host_kernel_expected_prefix = get_host_kernel_expected_prefix()
+        if not host_kernel_version.startswith(host_kernel_expected_prefix):
+            print(
+                f"ERROR: wrong host kernel: expected prefix {host_kernel_expected_prefix} "
+                f"- got {host_kernel_version}"
+            )
+            print("ERROR: install the right host kernel (./docs/host_kernel.md)")
+            exit(1)
+
+        if clean:
+            # Remove all directories that we populate and modify
+            for nuked_dir in [
+                COCO_ROOT,
+                CONTAINERD_CONFIG_ROOT,
+                HOST_CERT_DIR,
+                KATA_ROOT,
+                SC2_CONFIG_DIR,
+            ]:
+                if debug:
+                    print(f"WARNING: nuking {nuked_dir}")
+                run(f"sudo rm -rf {nuked_dir}", shell=True, check=True)
+
+            # Purge VM cache for a very-clean start
+            vm_cache_dir = join(PROJ_ROOT, "vm-cache")
+            result = run(
+                "sudo target/release/vm-cache prune",
+                cwd=vm_cache_dir,
+                shell=True,
+                capture_output=True,
+            )
+            assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
             if debug:
-                print(f"WARNING: nuking {nuked_dir}")
-            run(f"sudo rm -rf {nuked_dir}", shell=True, check=True)
+                print(result.stdout.decode("utf-8").strip())
 
-        # Purge VM cache for a very-clean start
-        vm_cache_dir = join(PROJ_ROOT, "vm-cache")
-        result = run(
-            "sudo target/release/vm-cache prune",
-            cwd=vm_cache_dir,
-            shell=True,
-            capture_output=True,
+            # Purge containerd for a very-clean start
+            purge_containerd_dir = join(PROJ_ROOT, "tools", "purge-containerd")
+            result = run(
+                "cargo build --release && sudo target/release/purge-containerd",
+                cwd=purge_containerd_dir,
+                shell=True,
+                capture_output=True,
+            )
+            assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+            if debug:
+                print(result.stdout.decode("utf-8").strip())
+
+        # Create SC2 config dir
+        if not exists(SC2_CONFIG_DIR):
+            makedirs(SC2_CONFIG_DIR)
+
+        # Disable swap
+        run("sudo swapoff -a", shell=True, check=True)
+
+        # Pull all artifact container images necessary
+        pull_artifact_images(debug=debug)
+
+        # Build and install containerd
+        containerd_install(debug=debug, clean=clean)
+        bbolt_install(debug=debug, clean=clean)
+
+        # Install k8s tooling (including k9s)
+        k8s_tooling_install(debug=debug, clean=clean)
+        k9s_install(debug=debug)
+
+        # Create a single-node k8s cluster
+        k8s_create(debug=debug)
+
+        # Install the CoCo operator as well as the CC-runtimes
+        operator_install(debug=debug)
+        operator_install_cc_runtime(debug=debug)
+
+        # Install the nydus-snapshotter (must happen after we install CoCo)
+        nydus_snapshotter_install(debug=debug, clean=clean)
+
+        # Install the nydusify tool
+        nydus_install()
+
+        # Start a local docker registry (must happen before knative installation,
+        # as we rely on it to host our sidecar image)
+        start_local_registry(debug=debug, clean=clean)
+
+        # Install Knative
+        knative_install(debug=debug)
+
+        # Install an up-to-date version of OVMF (the one currently shipped with
+        # CoCo is not enough to run on 6.11 and QEMU 9.1)
+        print_dotted_line(f"Installing OVMF ({OVMF_VERSION})")
+        ovmf_install()
+        print("Success!")
+
+        # Update SNP class to use default QEMU (we use host kernel 6.11, so we
+        # can use upstream QEMU 9.1). We do this update before generating the SC2
+        # runtime classes, so they will inherit the QEMU value
+        # TODO: remove when bumping to a new CoCo release
+        qemu_path = join(KATA_ROOT, "bin", "qemu-system-x86_64")
+        updated_toml_str = """
+        [hypervisor.qemu]
+        path = "{qemu_path}"
+        valid_hypervisor_paths = [ "{qemu_path}" ]
+        """.format(
+            qemu_path=qemu_path
         )
+        update_toml(
+            join(KATA_CONFIG_DIR, "configuration-qemu-snp.toml"),
+            updated_toml_str,
+            requires_root=True,
+        )
+
+        # Apply general patches to the Kata runtime
+        replace_kata_shim(
+            dst_shim_binary=join(KATA_ROOT, "bin", "containerd-shim-kata-v2"),
+            dst_runtime_binary=join(KATA_ROOT, "bin", "kata-runtime"),
+            sc2=False,
+        )
+
+        # Apply general patches to the Kata Agent (and initrd)
+        replace_kata_agent(
+            dst_initrd_path=join(
+                KATA_IMG_DIR, "kata-containers-initrd-confidential-sc2-baseline.img"
+            ),
+            debug=debug,
+            sc2=False,
+        )
+
+        # Install sc2 runtime with patches
+        print_dotted_line(f"Installing SC2 (v{COCO_VERSION})")
+        install_sc2_runtime(debug=debug)
+        print("Success!")
+
+        # Build and install the guest VM kernel (must be after installing SC2, so
+        # that we can patch all config files)
+        print_dotted_line(f"Build and install guest VM kernel (v{GUEST_KERNEL_VERSION})")
+        build_guest_kernel()
+        print("Success!")
+
+        # Once we are done with installing components, restart containerd
+        restart_containerd(debug=debug)
+
+        # Start the VM cache at the end so that we can pick up the latest config
+        # changes
+        print_dotted_line("Starting cVM cache...")
+        start_vm_cache(debug=debug)
+        print("Success!")
+
+        # Push demo apps to local registry for easy testing
+        push_demo_apps_to_local_registry(debug=debug)
+
+        # Finally, create a deployment file (right now, it is empty)
+        result = run(f"touch {SC2_DEPLOYMENT_FILE}", shell=True, capture_output=True)
         assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
         if debug:
             print(result.stdout.decode("utf-8").strip())
 
-        # Purge containerd for a very-clean start
-        purge_containerd_dir = join(PROJ_ROOT, "tools", "purge-containerd")
-        result = run(
-            "cargo build --release && sudo target/release/purge-containerd",
-            cwd=purge_containerd_dir,
-            shell=True,
-            capture_output=True,
-        )
-        assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
-        if debug:
-            print(result.stdout.decode("utf-8").strip())
-
-    # Create SC2 config dir
-    if not exists(SC2_CONFIG_DIR):
-        makedirs(SC2_CONFIG_DIR)
-
-    # Disable swap
-    run("sudo swapoff -a", shell=True, check=True)
-
-    # Pull all artifact container images necessary
-    pull_artifact_images(debug=debug)
-
-    # Build and install containerd
-    containerd_install(debug=debug, clean=clean)
-    bbolt_install(debug=debug, clean=clean)
-
-    # Install k8s tooling (including k9s)
-    k8s_tooling_install(debug=debug, clean=clean)
-    k9s_install(debug=debug)
-
-    # Create a single-node k8s cluster
-    k8s_create(debug=debug)
-
-    # Install the CoCo operator as well as the CC-runtimes
-    operator_install(debug=debug)
-    operator_install_cc_runtime(debug=debug)
-
-    # Install the nydus-snapshotter (must happen after we install CoCo)
-    nydus_snapshotter_install(debug=debug, clean=clean)
-
-    # Install the nydusify tool
-    nydus_install()
-
-    # Start a local docker registry (must happen before knative installation,
-    # as we rely on it to host our sidecar image)
-    start_local_registry(debug=debug, clean=clean)
-
-    # Install Knative
-    knative_install(debug=debug)
-
-    # Install an up-to-date version of OVMF (the one currently shipped with
-    # CoCo is not enough to run on 6.11 and QEMU 9.1)
-    print_dotted_line(f"Installing OVMF ({OVMF_VERSION})")
-    ovmf_install()
-    print("Success!")
-
-    # Update SNP class to use default QEMU (we use host kernel 6.11, so we
-    # can use upstream QEMU 9.1). We do this update before generating the SC2
-    # runtime classes, so they will inherit the QEMU value
-    # TODO: remove when bumping to a new CoCo release
-    qemu_path = join(KATA_ROOT, "bin", "qemu-system-x86_64")
-    updated_toml_str = """
-    [hypervisor.qemu]
-    path = "{qemu_path}"
-    valid_hypervisor_paths = [ "{qemu_path}" ]
-    """.format(
-        qemu_path=qemu_path
-    )
-    update_toml(
-        join(KATA_CONFIG_DIR, "configuration-qemu-snp.toml"),
-        updated_toml_str,
-        requires_root=True,
-    )
-
-    # Apply general patches to the Kata runtime
-    replace_kata_shim(
-        dst_shim_binary=join(KATA_ROOT, "bin", "containerd-shim-kata-v2"),
-        dst_runtime_binary=join(KATA_ROOT, "bin", "kata-runtime"),
-        sc2=False,
-    )
-
-    # Apply general patches to the Kata Agent (and initrd)
-    replace_kata_agent(
-        dst_initrd_path=join(
-            KATA_IMG_DIR, "kata-containers-initrd-confidential-sc2-baseline.img"
-        ),
-        debug=debug,
-        sc2=False,
-    )
-
-    # Install sc2 runtime with patches
-    print_dotted_line(f"Installing SC2 (v{COCO_VERSION})")
-    install_sc2_runtime(debug=debug)
-    print("Success!")
-
-    # Build and install the guest VM kernel (must be after installing SC2, so
-    # that we can patch all config files)
-    print_dotted_line(f"Build and install guest VM kernel (v{GUEST_KERNEL_VERSION})")
-    build_guest_kernel()
-    print("Success!")
-
-    # Once we are done with installing components, restart containerd
-    restart_containerd(debug=debug)
-
-    # Start the VM cache at the end so that we can pick up the latest config
-    # changes
-    print_dotted_line("Starting cVM cache...")
-    start_vm_cache(debug=debug)
-    print("Success!")
-
-    # Push demo apps to local registry for easy testing
-    push_demo_apps_to_local_registry(debug=debug)
-
-    # Finally, create a deployment file (right now, it is empty)
-    result = run(f"touch {SC2_DEPLOYMENT_FILE}", shell=True, capture_output=True)
-    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
-    if debug:
-        print(result.stdout.decode("utf-8").strip())
-
+    finally:
+        # Only clean up proxies if explicitly requested
+        if cleanup_proxies:
+            cleanup_proxy_configs()
 
 @task
 def destroy(ctx, debug=False):
