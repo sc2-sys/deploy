@@ -3,19 +3,43 @@ from os import makedirs
 from subprocess import run
 from tasks.util.env import BIN_DIR, GLOBAL_BIN_DIR
 
+import os
+import tempfile
+
 
 def download_binary(url, binary_name, debug=False):
-    makedirs(BIN_DIR, exist_ok=True)
+    """
+    Fetch a Kubernetes binary by downloading into a temporary file in BIN_DIR,
+    making it executable, and then atomically replacing any existing binary.
+    Returns the full path to the downloaded binary.
+    """
+    # Ensure the target directory exists
+    os.makedirs(BIN_DIR, exist_ok=True)
 
-    cmd = "curl -LO {}".format(url)
-    result = run(cmd, shell=True, capture_output=True, cwd=BIN_DIR)
-    assert result.returncode == 0, print(result.stderr.decode("utf-8").strip())
+    # Create a secure temp file in the same directory
+    fd, tmp_path = tempfile.mkstemp(prefix=binary_name, dir=BIN_DIR)
+    os.close(fd)
+
+    # Download directly into the temp file
+    cmd = f"curl -L -o {tmp_path} {url}"
+    result = run(cmd, shell=True, capture_output=True)
+    if result.returncode != 0:
+        err = result.stderr.decode().strip()
+        raise RuntimeError(f"Failed to download {binary_name} from {url}: {err}")
     if debug:
-        print(result.stdout.decode("utf-8").strip())
+        print(result.stdout.decode().strip())
 
-    run("chmod +x {}".format(binary_name), shell=True, check=True, cwd=BIN_DIR)
+    # Make the downloaded file executable
+    os.chmod(tmp_path, 0o755)
 
-    return join(BIN_DIR, binary_name)
+    # Atomically move it into place, replacing any existing binary
+    dest_path = join(BIN_DIR, binary_name)
+    os.replace(tmp_path, dest_path)
+
+    if debug:
+        print(f"[DEBUG] Placed {binary_name} at {dest_path}")
+
+    return dest_path
 
 
 def symlink_global_bin(binary_path, name, debug=False):
