@@ -81,15 +81,12 @@ Environment="NO_PROXY={no_proxy}"
         run("sudo systemctl daemon-reload", shell=True, check=True)
         run("sudo systemctl restart docker", shell=True, check=True)
         
-        # logger.info("Docker proxy configuration applied successfully")
         return True
         
     except CalledProcessError as e:
-        logger.error(f"Failed to configure Docker proxy: {e}")
-        return False
+        print(f"Failed to configure Docker proxy: {e}", flush=True)
     except Exception as e:
-        logger.error(f"Unexpected error configuring Docker proxy: {e}")
-        return False
+        print(f"Unexpected error configuring Docker proxy: {e}", flush=True)
 
 def configure_containerd_proxy(debug=False):
     """Configure containerd daemon to use proxy settings detected form the system."""
@@ -114,45 +111,42 @@ Environment="NO_PROXY={no_proxy}"
         run("sudo systemctl daemon-reload", shell=True, check=True)
         run("sudo systemctl restart containerd", shell=True, check=True)
         
-        logger.info("containerd proxy configuration applied successfully")
         return True
         
     except CalledProcessError as e:
-        logger.error(f"Failed to configure containerd proxy: {e}")
-        return False
+        print(f"Failed to configure containerd proxy: {e}", flush=True)
     except Exception as e:
-        logger.error(f"Unexpected error configuring Docker proxy: {e}")
-        return False
+        print(f"Unexpected error configuring containerd proxy: {e}", flush=True)
 
-def configure_kubelet_proxy():
-    """Configure kubelet to use proxy settings."""
+def configure_kubelet_proxy(debug=False):
+    """Configure kubelet daemon to use proxy settings detected form the system."""
+
+    proxy_settings = get_proxy_settings()
+
     proxy_dir = Path("/etc/systemd/system/kubelet.service.d")
     proxy_conf = proxy_dir / "proxy.conf"
     
-    # Create directory if it doesn't exist
-    proxy_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Create proxy configuration content
-    config_content = """[Service]
-Environment="HTTP_PROXY={}"
-Environment="HTTPS_PROXY={}"
-Environment="FTP_PROXY={}"
-""".format(HTTP_PROXY, HTTPS_PROXY, FTP_PROXY)
-    
-    # Write configuration file
-    with open(proxy_conf, 'w') as f:
-        f.write(config_content)
-    
-    # Reload systemd
-    subprocess.run(["systemctl", "daemon-reload"])
-    # Only restart kubelet if it's running
     try:
-        subprocess.run(["systemctl", "is-active", "--quiet", "kubelet"])
-        subprocess.run(["systemctl", "restart", "kubelet"])
-    except:
-        logger.info("Kubelet not running, no restart needed")
-    
-    logger.info("Kubelet proxy configuration applied")
+        run(f"sudo mkdir -p {proxy_dir}", shell=True, check=True)
+        
+        config_content = """[Service]
+Environment="HTTP_PROXY={http_proxy}"
+Environment="HTTPS_PROXY={https_proxy}"
+Environment="FTP_PROXY={ftp_proxy}"
+Environment="NO_PROXY={no_proxy}"
+""".format(**proxy_settings)
+        
+        run(f"sudo tee {proxy_conf} > /dev/null", shell=True, input=config_content.encode(), check=True)
+
+        run("sudo systemctl daemon-reload", shell=True, check=True)
+        run("sudo systemctl restart kubelet", shell=True, check=True)
+        
+        return True
+        
+    except CalledProcessError as e:
+        print(f"Failed to configure kubelet proxy: {e}", flush=True)
+    except Exception as e:
+        print(f"Unexpected error configuring kubelet proxy: {e}", flush=True)
 
 def cleanup_proxy_configs(debug=False):
     """Remove all proxy configurations."""
@@ -202,6 +196,7 @@ def configure_all_proxies(debug=False):
 
     configure_docker_proxy(debug=debug)
     configure_containerd_proxy(debug=debug)
+    configure_kubelet_proxy(debug=debug)
     # Add other proxy configurations as needed
     
     print("Success!")
