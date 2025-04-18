@@ -167,14 +167,33 @@ def cleanup_proxy_configs():
         # Add other proxy files as needed
     ]
     
+    # Remove each proxy configuration file
     for config in proxy_configs:
-        try:
-            run(f"sudo rm {config}", shell=True, check=True)
-            print(f"{config} file deleted!", flush=True)
-        except FileNotFoundError:
-            print(f"{config} not found, skipping", flush=True)
+        config_path = Path(config)
+        if config_path.exists():
+            try:
+                run(f"sudo rm {config}", shell=True, check=True)
+                print(f"✓ {config} file deleted!", flush=True)
+                
+                # Also try to remove the parent directory if it's empty
+                parent_dir = config_path.parent
+                if parent_dir.exists() and not any(parent_dir.iterdir()):
+                    run(f"sudo rmdir {parent_dir}", shell=True, check=True)
+                    print(f"✓ Empty directory {parent_dir} removed", flush=True)
+
+            except CalledProcessError as e:
+                print(f"✗ Failed to remove {config}: {e}", flush=True)
+
+        else:
+            print(f"- {config} not found, skipping", flush=True)
     
-    run("sudo systemctl daemon-reload", shell=True, check=True)
+    # Reload systemd
+    try:
+        run("sudo systemctl daemon-reload", shell=True, check=True)
+        print("✓ Systemd daemon reloaded", flush=True)
+    except CalledProcessError as e:
+        print(f"✗ Failed to reload systemd: {e}", flush=True)
+        
     print("Success!")
 
 def configure_all_proxies():
