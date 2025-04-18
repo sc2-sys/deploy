@@ -63,6 +63,7 @@ from tasks.util.versions import (
 )
 from time import sleep
 
+from tasks.util.proxy import configure_docker_proxy, cleanup_proxy_configs
 
 def start_vm_cache(debug=False):
     vm_cache_dir = join(PROJ_ROOT, "vm-cache")
@@ -211,15 +212,18 @@ def install_sc2_runtime(debug=False):
 
 
 @task(default=True)
-def deploy(ctx, debug=False, clean=False, cleanup_proxies=False):
+def deploy(ctx, debug=False, clean=False, proxy=False):
     """
     Deploy an SC2-enabled bare-metal Kubernetes cluster
     """
-    # Apply proxy configurations first thing
-    from tasks.util.proxy import configure_containerd_proxy, cleanup_proxy_configs
-    configure_containerd_proxy()
-
+    
     try:
+        # If host is behind a proxy, configure proxies here
+        if proxy:
+            configure_docker_proxy()
+            print_dotted_line("Proxy Configured!")
+            print("Succeess!")
+
         # Fail-fast if deployment exists
         if exists(SC2_DEPLOYMENT_FILE):
             print(f"ERROR: SC2 already deployed (file {SC2_DEPLOYMENT_FILE} exists)")
@@ -383,7 +387,7 @@ def deploy(ctx, debug=False, clean=False, cleanup_proxies=False):
 
     finally:
         # Only clean up proxies if explicitly requested
-        if cleanup_proxies:
+        if proxy:
             cleanup_proxy_configs()
 
 @task
