@@ -58,7 +58,7 @@ def get_proxy_settings():
 
     return proxy_settings
 
-def configure_docker_proxy():
+def configure_docker_proxy(debug=False):
     """Configure Docker daemon to use proxy settings detected form the system."""
 
     proxy_settings = get_proxy_settings()
