@@ -133,7 +133,7 @@ def configure_kubelet_proxy(debug=False):
 Environment="HTTP_PROXY={http_proxy}"
 Environment="HTTPS_PROXY={https_proxy}"
 Environment="FTP_PROXY={ftp_proxy}"
-Environment="NO_PROXY={no_proxy}"
+Environment="NO_PROXY={no_proxy}, 192.168.50.49, 10.96.0.0/12, 192.168.0.0/16"
 """.format(**proxy_settings)
         
         run(f"sudo tee {proxy_conf} > /dev/null", shell=True, input=config_content.encode(), check=True)
