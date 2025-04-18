@@ -33,6 +33,7 @@ CONTAINERD_BINARY_NAMES = [
 CONTAINERD_CTR_BINPATH = "/go/src/github.com/sc2-sys/containerd/bin"
 CONTAINERD_HOST_BINPATH = "/usr/bin"
 
+from tasks.util.proxy import get_proxy_settings
 
 @task
 def build(ctx, nocache=False, push=False):
@@ -181,7 +182,7 @@ def install(debug=False, clean=False):
     print("Success!")
 
 
-def install_bbolt(debug=False, clean=False):
+def install_bbolt(debug=False, clean=False, proxy=False):
     print_dotted_line("Installing bbolt")
 
     wait_for_containerd_socket()
@@ -195,14 +196,23 @@ def install_bbolt(debug=False, clean=False):
         result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
         assert result.returncode == 0
 
-    http_proxy = "http://133.9.80.129:3128"
-    https_proxy = "http://133.9.80.129:3128"
+    proxy_settings = get_proxy_settings()
+    http_proxy = proxy_settings['http_proxy']
+    https_proxy = proxy_settings['https_proxy']
 
-    result = run(
-        f"docker run -d -it --name {tmp_ctr_name} -e HTTP_PROXY={http_proxy} -e HTTPS_PROXY={https_proxy} golang:{GO_VERSION} bash",
-        shell=True,
-        capture_output=True,
-    )
+    if proxy:
+        result = run(
+            f"docker run -d -it --name {tmp_ctr_name} -e HTTP_PROXY={http_proxy} -e HTTPS_PROXY={https_proxy} golang:{GO_VERSION} bash",
+            shell=True,
+            capture_output=True,
+        )
+    else: 
+        result = run(
+            f"docker run -d -it --name {tmp_ctr_name} golang:{GO_VERSION} bash",
+            shell=True,
+            capture_output=True,
+        )
+
     if result.returncode != 0:
         print(result.stderr.decode("utf-8").strip()),
         rm_container()

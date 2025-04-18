@@ -288,7 +288,7 @@ def deploy(ctx, debug=False, clean=False, proxy=False):
 
         # Build and install containerd
         containerd_install(debug=debug, clean=clean)
-        bbolt_install(debug=True, clean=clean)
+        bbolt_install(debug=debug, clean=clean, proxy=proxy)
 
         # Install k8s tooling (including k9s)
         k8s_tooling_install(debug=debug, clean=clean)
