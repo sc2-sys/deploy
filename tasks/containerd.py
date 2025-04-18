@@ -195,8 +195,11 @@ def install_bbolt(debug=False, clean=False):
         result = run(f"docker rm -f {tmp_ctr_name}", shell=True, capture_output=True)
         assert result.returncode == 0
 
+    http_proxy = "http://133.9.80.129:3128"
+    https_proxy = "http://133.9.80.129:3128"
+
     result = run(
-        f"docker run -d -it --name {tmp_ctr_name} golang:{GO_VERSION} bash",
+        f"docker run -d -it --name {tmp_ctr_name} -e HTTP_PROXY={http_proxy} -e HTTPS_PROXY={https_proxy} golang:{GO_VERSION} bash",
         shell=True,
         capture_output=True,
     )
