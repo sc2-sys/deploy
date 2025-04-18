@@ -63,7 +63,7 @@ from tasks.util.versions import (
 )
 from time import sleep
 
-from tasks.util.proxy import configure_docker_proxy, cleanup_proxy_configs
+from tasks.util.proxy import configure_docker_proxy, configure_containerd_proxy, cleanup_proxy_configs
 
 def start_vm_cache(debug=False):
     vm_cache_dir = join(PROJ_ROOT, "vm-cache")
@@ -221,6 +221,7 @@ def deploy(ctx, debug=False, clean=False, proxy=False):
         # If host is behind a proxy, configure proxies here
         if proxy:
             configure_docker_proxy()
+            configure_containerd_proxy()
             print_dotted_line("Proxy Configured!")
             print("Succeess!")
 
