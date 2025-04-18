@@ -6,6 +6,7 @@ from pathlib import Path
 
 from subprocess import run, CalledProcessError
 import re
+from tasks.util.env import print_dotted_line
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +158,8 @@ Environment="FTP_PROXY={}"
 def cleanup_proxy_configs():
     """Remove all proxy configurations."""
     
+    print_dotted_line("Cleaning up proxies")
+
     proxy_configs = [
         "/etc/systemd/system/docker.service.d/proxy.conf",
         "/etc/systemd/system/containerd.service.d/proxy.conf",
@@ -166,37 +169,22 @@ def cleanup_proxy_configs():
     
     for config in proxy_configs:
         try:
-            os.remove(config)
-            logger.info(f"Removed {config}")
+            run(f"sudo rm {config}", shell=True, check=True)
+            print(f"{config} file deleted!", flush=True)
         except FileNotFoundError:
-            logger.info(f"{config} not found, skipping")
+            print(f"{config} not found, skipping", flush=True)
     
     run("sudo systemctl daemon-reload", shell=True, check=True)
-    logger.info("Proxy configurations cleaned up")
+    print("Success!")
 
 def configure_all_proxies():
     """Apply all proxy configurations."""
-    
+
+    print_dotted_line("Configuring proxies")
+
     configure_docker_proxy()
     configure_containerd_proxy()
     configure_kubelet_proxy()
     # Add other proxy configurations as needed
     
-    logger.info("All proxy configurations applied")
-
-# Example usage:
-# if __name__ == "__main__":
-#     import argparse
-    
-#     parser = argparse.ArgumentParser(description="Manage proxy configurations")
-#     parser.add_argument("--apply", action="store_true", help="Apply all proxy configurations")
-#     parser.add_argument("--cleanup", action="store_true", help="Remove all proxy configurations")
-    
-#     args = parser.parse_args()
-    
-#     if args.apply:
-#         configure_all_proxies()
-#     elif args.cleanup:
-#         cleanup_proxy_configs()
-#     else:
-#         parser.print_help()
+    print("Success!")
