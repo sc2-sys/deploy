@@ -157,7 +157,7 @@ Environment="FTP_PROXY={}"
 def cleanup_proxy_configs(debug=False):
     """Remove all proxy configurations."""
     
-    print_dotted_line("Cleaning up proxies")
+    # print_dotted_line("Cleaning up proxies")
 
     proxy_configs = [
         "/etc/systemd/system/docker.service.d/proxy.conf",

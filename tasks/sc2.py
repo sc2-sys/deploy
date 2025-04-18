@@ -386,7 +386,8 @@ def deploy(ctx, debug=False, clean=False, proxy=False):
     finally:
         # Only clean up proxies if explicitly requested
         if proxy:
-            cleanup_proxy_configs()
+            # cleanup_proxy_configs()
+            print("DONE!")
 
 @task
 def destroy(ctx, debug=False):
