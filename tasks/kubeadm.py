@@ -75,6 +75,7 @@ def create(debug=False):
     run_kubectl_command(
         "label node {} {}".format(node_name, node_label), capture_output=not debug
     )
+    print_dotted_line("started cluster, copied config, readied node, untainted it, labeled it")
 
     # Configure Calico
     calico_url = "https://raw.githubusercontent.com/projectcalico/calico"
@@ -85,6 +86,7 @@ def create(debug=False):
     run_kubectl_command(
         f"create -f {calico_url}/custom-resources.yaml", capture_output=not debug
     )
+    print_dotted_line("finished running kubectl commands")
     wait_for_pods_in_ns(
         "calico-system",
         label="app.kubernetes.io/name=csi-node-driver",
