@@ -76,12 +76,12 @@ Environment="FTP_PROXY={ftp_proxy}"
 Environment="NO_PROXY={no_proxy}"
 """.format(**proxy_settings)
         
-        run(f"sudo tee {proxy_conf}", shell=True, input=config_content.encode(), check=True)
+        run(f"sudo tee {proxy_conf} > /dev/null", shell=True, input=config_content.encode(), check=True)
 
         run("sudo systemctl daemon-reload", shell=True, check=True)
         run("sudo systemctl restart docker", shell=True, check=True)
         
-        logger.info("Docker proxy configuration applied successfully")
+        # logger.info("Docker proxy configuration applied successfully")
         return True
         
     except CalledProcessError as e:
@@ -91,7 +91,7 @@ Environment="NO_PROXY={no_proxy}"
         logger.error(f"Unexpected error configuring Docker proxy: {e}")
         return False
 
-def configure_containerd_proxy():
+def configure_containerd_proxy(debug=False):
     """Configure containerd daemon to use proxy settings detected form the system."""
 
     proxy_settings = get_proxy_settings()
@@ -109,7 +109,7 @@ Environment="FTP_PROXY={ftp_proxy}"
 Environment="NO_PROXY={no_proxy}"
 """.format(**proxy_settings)
         
-        run(f"sudo tee {proxy_conf}", shell=True, input=config_content.encode(), check=True)
+        run(f"sudo tee {proxy_conf} > /dev/null", shell=True, input=config_content.encode(), check=True)
 
         run("sudo systemctl daemon-reload", shell=True, check=True)
         run("sudo systemctl restart containerd", shell=True, check=True)
@@ -154,7 +154,7 @@ Environment="FTP_PROXY={}"
     
     logger.info("Kubelet proxy configuration applied")
 
-def cleanup_proxy_configs():
+def cleanup_proxy_configs(debug=False):
     """Remove all proxy configurations."""
     
     print_dotted_line("Cleaning up proxies")
@@ -195,13 +195,13 @@ def cleanup_proxy_configs():
         
     print("Success!")
 
-def configure_all_proxies():
+def configure_all_proxies(debug=False):
     """Apply all proxy configurations."""
 
     print_dotted_line("Configuring proxies")
 
-    configure_docker_proxy()
-    configure_containerd_proxy()
+    configure_docker_proxy(debug=debug)
+    configure_containerd_proxy(debug=debug)
     # Add other proxy configurations as needed
     
     print("Success!")
