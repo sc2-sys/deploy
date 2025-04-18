@@ -220,7 +220,7 @@ def deploy(ctx, debug=False, clean=False, proxy=False):
     try:
         # If host is behind a proxy, configure proxies here
         if proxy:
-            configure_all_proxies()
+            configure_all_proxies(debug=debug)
 
         # Fail-fast if deployment exists
         if exists(SC2_DEPLOYMENT_FILE):
