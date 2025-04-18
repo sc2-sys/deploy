@@ -55,8 +55,7 @@ def get_proxy_settings():
                             proxy_settings[key.lower()] = value
         except Exception as e:
             logger.warning(f"Failed to read /etc/environment: {e}")
-    
-    logger.debug(f"Detected proxy settings: {proxy_settings}")
+
     return proxy_settings
 
 def configure_docker_proxy():
@@ -203,7 +202,6 @@ def configure_all_proxies():
 
     configure_docker_proxy()
     configure_containerd_proxy()
-    configure_kubelet_proxy()
     # Add other proxy configurations as needed
     
     print("Success!")
