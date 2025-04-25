@@ -31,7 +31,7 @@ KNATIVE_VERSION = "1.15.0"
 # WARNING: if we update the host kernel version, make sure to update it in the
 # table in ./docs/host_kernel.md
 HOST_KERNEL_VERSION_SNP = "6.11.0-snp-host-cc2568386"
-HOST_KERNEL_VERSION_TDX = "6.8.0-1022-intel" # "6.8.0-1013-intel"
+HOST_KERNEL_VERSION_TDX = "6.8.0-1013-intel"
 GUEST_KERNEL_VERSION = "6.12.13"
 
 # Coconut SVSM versions
