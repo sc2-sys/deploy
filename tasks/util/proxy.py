@@ -3,7 +3,7 @@ import os
 import json
 from subprocess import run
 
-def check_proxy():
+def is_proxy_set():
     """
     Check if proxy environment variables are set in the system.
     Returns True if any proxy variables are set, False otherwise.
@@ -177,3 +177,4 @@ Environment="NO_PROXY={NO_PROXY}"
 
     run("sudo systemctl daemon-reload", shell=True, check=True)
     run("sudo systemctl restart docker", shell=True, check=True)
+    

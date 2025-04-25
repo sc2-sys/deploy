@@ -18,7 +18,7 @@ from tasks.util.env import (
     PROJ_ROOT,
     print_dotted_line,
 )
-from tasks.util.proxy import check_proxy, configure_containerd_proxy
+from tasks.util.proxy import is_proxy_set, configure_containerd_proxy
 from tasks.util.toml import update_toml
 from tasks.util.versions import CONTAINERD_VERSION, GO_VERSION
 from time import sleep
@@ -161,7 +161,7 @@ def install(debug=False, clean=False):
         config_cmd = "sudo bash -c '{}'".format(config_cmd)
         run(config_cmd, shell=True, check=True)
         # Install proxy for containerd
-        if check_proxy():
+        if is_proxy_set():
             configure_containerd_proxy()
 
     # Restart containerd service
