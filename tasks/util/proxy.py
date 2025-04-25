@@ -134,7 +134,8 @@ Environment="NO_PROXY={NO_PROXY}"
     if 'proxies' in daemon_config:
         # Check for conflicts with existing settings
         for daemon_key, env_key in daemon_proxy_map.items():
-            if daemon_key in daemon_config['proxies'] and daemon_config['proxies'][daemon_key] != proxy_settings[env_key]:
+            daemon_config_key = daemon_config['proxies'][daemon_key]
+            if daemon_key in daemon_config['proxies'] and daemon_config_key != proxy_settings[env_key]:
                 raise ValueError(f"Existing proxy setting {daemon_key} in daemon.json differs from environment")
     else:
         # Add new proxy settings
@@ -165,7 +166,9 @@ Environment="NO_PROXY={NO_PROXY}"
     if 'default' in user_config['proxies']:
         # Check for conflicts with existing settings
         for config_key, env_key in user_proxy_map.items():
-            if config_key in user_config['proxies']['default'] and user_config['proxies']['default'][config_key] != proxy_settings[env_key]:
+            default_proxies = user_config['proxies']['default']
+            user_config_key = user_config['proxies']['default'][config_key]
+            if config_key in default_proxies and user_config_key != proxy_settings[env_key]:
                 raise ValueError(f"Existing proxy setting {config_key} in config.json differs from environment")
     else:
         # Add new proxy settings
@@ -177,4 +180,3 @@ Environment="NO_PROXY={NO_PROXY}"
 
     run("sudo systemctl daemon-reload", shell=True, check=True)
     run("sudo systemctl restart docker", shell=True, check=True)
-    
