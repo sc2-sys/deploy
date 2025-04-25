@@ -35,7 +35,6 @@ CONTAINERD_CTR_BINPATH = "/go/src/github.com/sc2-sys/containerd/bin"
 CONTAINERD_HOST_BINPATH = "/usr/bin"
 
 
-
 @task
 def build(ctx, nocache=False, push=False):
     """
