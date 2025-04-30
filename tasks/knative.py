@@ -136,34 +136,34 @@ def install(skip_push=False, debug=False):
     run_kubectl_command(kube_cmd, capture_output=not debug)
 
     # Patch activator pod with minimal resolv.conf
-    DNS_IP = run_kubectl_command(
-        "get svc -n kube-system kube-dns -o jsonpath={.spec.clusterIP}", capture_output=True
+    dns_ip = run_kubectl_command(
+        "get svc -n kube-system kube-dns -o jsonpath={.spec.clusterIP}",
+        capture_output=True,
     )
     dns_patch = {
-    "spec": {
-    "template": {
-      "spec": {
-        "dnsPolicy": "None",
-        "dnsConfig": {
-          "nameservers": [DNS_IP],
-          "searches": [
-            "knative-serving.svc.cluster.local",
-            "svc.cluster.local",
-            "cluster.local"
-           ],
+        "spec": {
+            "template": {
+                "spec": {
+                    "dnsPolicy": "None",
+                    "dnsConfig": {
+                        "nameservers": [dns_ip],
+                        "searches": [
+                            "knative-serving.svc.cluster.local",
+                            "svc.cluster.local",
+                            "cluster.local",
+                        ],
+                    },
+                }
+            }
         }
-      }
     }
-  }
-}
     run_kubectl_command(
         f"patch deployment activator -n knative-serving "
         f"--type merge -p '{json_dumps(dns_patch)}'",
-        capture_output=True
+        capture_output=True,
     )
     run_kubectl_command(
-        f"rollout restart deployment/activator -n knative-serving",
-        capture_output=True
+        f"rollout restart deployment/activator -n knative-serving", capture_output=True
     )
 
     # Wait for the core components to be ready
