@@ -46,8 +46,7 @@ jobs:
       matrix:
         include:
           - tee: snp
-            # Temporarily disable TDX tests, until server is available again
-            # - tee: tdx
+          - tee: tdx
 
     runs-on: [self-hosted, "${{ matrix.tee }}"]
     env:
