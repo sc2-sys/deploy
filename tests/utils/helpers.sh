@@ -102,8 +102,10 @@ run_knative_hello_world() {
     sleep 1
 
     # Get the service URL
-    service_url=$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
-    [ "$(curl --retry 3 ${service_url})" = "Hello World!" ]
+    service_name=$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers | sed 's|^http://||')
+    lb_url=$(${KUBECTL} -n kourier-system get svc kourier -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+    curl_out=$(curl -v --retry 3 --header "Host: ${service_name}" ${lb_url})
+    [ "${curl_out}" = "Hello World!" ]
 }
 
 run_knative_lazy_loading() {
@@ -113,9 +115,10 @@ run_knative_lazy_loading() {
     envsubst < ./demo-apps/helloworld-knative-nydus/service.yaml | ${KUBECTL} apply -f -
     sleep 1
 
-    # Get the service URL
-    service_url=$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
-    [ "$(curl --retry 3 ${service_url})" = "Hello World!" ]
+    service_name=$(${KUBECTL} -n ${SC2_DEMO_NAMESPACE} get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers | sed 's|^http://||')
+    lb_url=$(${KUBECTL} -n kourier-system get svc kourier -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+    curl_out=$(curl -v --retry 3 --header "Host: ${service_name}" ${lb_url})
+    [ "${curl_out}" = "Hello World!" ]
 }
 
 run_python_hello_world() {
