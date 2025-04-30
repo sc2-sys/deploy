@@ -163,7 +163,7 @@ def install(skip_push=False, debug=False):
         capture_output=True,
     )
     run_kubectl_command(
-        f"rollout restart deployment/activator -n knative-serving", capture_output=True
+        "rollout restart deployment/activator -n knative-serving", capture_output=True
     )
 
     # Wait for the core components to be ready
