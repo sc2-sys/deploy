@@ -51,7 +51,9 @@ export SC2_RUNTIME_CLASS=qemu-snp-sc2
 
 # Knative demo
 envsubst < ./demo-apps/helloworld-knative/service.yaml | kubectl apply -f -
-curl $(kubectl -n sc2-demo get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers)
+curl  \
+    --header "Host: $(kubectl -n sc2-demo get ksvc helloworld-knative  --output=custom-columns=URL:.status.url --no-headers | sed 's|^http://||')" \
+    $(kubectl -n kourier-system get svc kourier -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 # Non-Knative demo
 envsubst < ./demo-apps/helloworld-py/deployment.yaml | kubectl apply -f -
