@@ -1,5 +1,6 @@
 from invoke import task
 from os.path import join
+from json import dumps as json_dumps
 from tasks.util.env import CONF_FILES_DIR, LOCAL_REGISTRY_URL, print_dotted_line
 from tasks.util.knative import (
     configure_self_signed_certs as do_configure_self_signed_certs,
@@ -133,6 +134,37 @@ def install(skip_push=False, debug=False):
     # Install the core serving components
     kube_cmd = "apply -f {}".format(join(KNATIVE_SERVING_BASE_URL, "serving-core.yaml"))
     run_kubectl_command(kube_cmd, capture_output=not debug)
+
+    # Patch activator pod with minimal resolv.conf
+    dns_ip = run_kubectl_command(
+        "get svc -n kube-system kube-dns -o jsonpath={.spec.clusterIP}",
+        capture_output=True,
+    )
+    dns_patch = {
+        "spec": {
+            "template": {
+                "spec": {
+                    "dnsPolicy": "None",
+                    "dnsConfig": {
+                        "nameservers": [dns_ip],
+                        "searches": [
+                            "knative-serving.svc.cluster.local",
+                            "svc.cluster.local",
+                            "cluster.local",
+                        ],
+                    },
+                }
+            }
+        }
+    }
+    run_kubectl_command(
+        f"patch deployment activator -n knative-serving "
+        f"--type merge -p '{json_dumps(dns_patch)}'",
+        capture_output=True,
+    )
+    run_kubectl_command(
+        "rollout restart deployment/activator -n knative-serving", capture_output=True
+    )
 
     # Wait for the core components to be ready
     wait_for_pods_in_ns(

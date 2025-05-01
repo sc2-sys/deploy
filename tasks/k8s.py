@@ -4,6 +4,7 @@ from shutil import rmtree
 from subprocess import run
 from tasks.util.env import BIN_DIR, CONF_FILES_DIR, print_dotted_line
 from tasks.util.network import download_binary, symlink_global_bin
+from tasks.util.proxy import is_proxy_set, configure_kubelet_proxy
 from tasks.util.versions import K8S_VERSION, CNI_VERSION, CRICTL_VERSION
 
 
@@ -163,6 +164,10 @@ def install(debug=False, clean=False):
     print_dotted_line(f"Installing kubectl & friends (v{K8S_VERSION})")
     install_k8s(debug=debug, clean=clean)
     print("Success!")
+
+    # If proxy environment variables present configure kubelet proxies
+    if is_proxy_set():
+        configure_kubelet_proxy()
 
     # Start kubelet service
     configure_kubelet_service(debug=debug, clean=clean)

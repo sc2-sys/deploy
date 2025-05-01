@@ -50,6 +50,7 @@ from tasks.util.kata import (
 )
 from tasks.util.kernel import get_host_kernel_expected_prefix, get_host_kernel_version
 from tasks.util.kubeadm import run_kubectl_command
+from tasks.util.proxy import is_proxy_set, configure_docker_proxy
 from tasks.util.registry import (
     HOST_CERT_DIR,
     start as start_local_registry,
@@ -215,6 +216,10 @@ def deploy(ctx, debug=False, clean=False):
     """
     Deploy an SC2-enabled bare-metal Kubernetes cluster
     """
+    # If proxy environment variables present, apply to docker
+    if is_proxy_set():
+        configure_docker_proxy()
+
     # Fail-fast if deployment exists
     if exists(SC2_DEPLOYMENT_FILE):
         print(f"ERROR: SC2 already deployed (file {SC2_DEPLOYMENT_FILE} exists)")
