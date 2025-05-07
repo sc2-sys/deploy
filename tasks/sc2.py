@@ -169,7 +169,6 @@ def install_sc2_runtime(debug=False):
         "kata-clh",
         "kata-qemu",
         "kata-qemu-coco-dev",
-        "kata-qemu-sev",
         "kata-qemu-snp",
         "kata-qemu-snp-sc2",
         "kata-qemu-tdx",
