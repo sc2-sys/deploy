@@ -65,7 +65,6 @@ def install_cc_runtime(debug=False):
         "kata-qemu",
         "kata-qemu-coco-dev",
         "kata-qemu-tdx",
-        "kata-qemu-sev",
         "kata-qemu-snp",
     ]
     run_class_cmd = "get runtimeclass -o jsonpath='{.items..handler}'"
